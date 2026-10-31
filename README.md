@@ -12,6 +12,7 @@
 |---|---|---|
 | [contest/](contest/) | 대회 목표, 제약사항, 개발 환경 | 항상. 기획·개발 방향을 정할 때 |
 | [sdk/](sdk/) | 공식 SDK 5종의 설명, 기능, 활용, 함수 목록 | 구현할 때 |
+| [plan/](plan/) | 우리 기획: 아이디어 후보, 선정, 기획서 초안 | 기획할 때 |
 
 ### contest/ (항상 봐야 할 것)
 
@@ -21,6 +22,13 @@
 | [rules.md](contest/rules.md) | 일정, 제출물 규격, 참가 규정, IP 조항, 상금 조건, 미공개 항목, 제출 체크리스트 |
 | [environment.md](contest/environment.md) | 요구 버전, Playground 계정·프로젝트·SDK 신청, 에뮬레이터 2.1.0, SDK 제공 상태, 로컬 세팅 순서 |
 | [forms/](contest/forms/) | 접수양식(기획서) + 개인정보 동의서 DOCX 원본 |
+
+### plan/ (우리가 만드는 것)
+
+| 파일 | 내용 |
+|---|---|
+| [ideas.md](plan/ideas.md) | 아이디어 후보 7개, SDK 매핑, 비교표, 추천 순위 |
+| [dev-environment.md](plan/dev-environment.md) | 확정 개발 환경: 머신 세팅, 프로젝트 버전 고정표, 구조·규칙, 세팅 순서 |
 
 ### sdk/ (필요할 때 찾는 것)
 
