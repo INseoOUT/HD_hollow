@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- 실제 호출하는 API의 권한만 선언 (샘플 전체 권한 복사 금지) -->
+    <uses-permission android:name="pleos.car.permission.CAR_LIGHTS" />   <!-- 앰비언트 밝기·색 조회 -->
+    <!-- PoC 확인: SDK 어노테이션은 set에 CAR_LIGHTS만 표기하지만 런타임은 "need Permission"으로 거부했다.
+         제어 권한이 실제로 필요한지 검증용. Playground에서 Vehicle Control은 "준비 중"이라 배포 앱에는 못 쓸 수 있음. -->
+    <uses-permission android:name="pleos.car.permission.CONTROL_CAR_LIGHTS" />
+    <uses-permission android:name="pleos.car.permission.CAR_CLIMATE" />  <!-- 공조 풍량 -->
+    <uses-permission android:name="pleos.car.permission.CAR_WINDOWS" />  <!-- 창문 위치 -->
+    <uses-permission android:name="android.car.permission.CAR_POWERTRAIN" /> <!-- 기어(AAOS) -->
+    <uses-permission android:name="android.permission.INTERNET" />       <!-- 폰 영상 수신 -->
+
+    <application
+        android:label="Car Studio"
+        android:usesCleartextTraffic="true"
+        android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:screenOrientation="landscape">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
