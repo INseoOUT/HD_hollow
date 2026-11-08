@@ -1,6 +1,0 @@
-# .sprintify/agent.Dockerfile 빌드 컨텍스트(저장소 루트)에서 뺄 것
-.git
-**/build
-poc/.gradle
-poc/local.properties
-*.apk

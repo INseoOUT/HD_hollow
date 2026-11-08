@@ -1,6 +1,5 @@
 package com.hdhollow.studio.car
 
-import ai.pleos.playground.vehicle.constant.control.LightSwitch
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -13,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,6 +21,11 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -36,13 +41,17 @@ val PANEL_WIDTH = 380.dp
 private val PanelBg = Color(0xE614161A)
 private val Dim = Color(0xFF9A9FA8)
 private val Line = Color(0xFF2C3038)
+private val Danger = Color(0xFFFF8A7A)
 
 /**
- * 조명 패널: 링라이트(밝기·색온도·무드 색·다이얼 대상), 앰비언트(연동·켜짐·현재 값), 실내등, 좌석별 독서등.
- * capability 가 없는 섹션은 보이지 않는다.
+ * 조명 패널: 프리셋(기본 4 + 사용자, 추가·삭제), 링라이트(밝기·색온도·무드 색·다이얼 대상·풀 라이트), 앰비언트(연동·현재 값).
+ * 실내등·독서등은 패널에서 직접 만지지 않고 프리셋으로만 바뀐다(2026-11-09 결정).
  */
 @Composable
-fun LightPanel(light: StudioLight, lighting: Lighting, studio: StudioVehicle, modifier: Modifier = Modifier) {
+fun LightPanel(light: StudioLight, lighting: Lighting, studio: StudioVehicle, presets: ScenePresets, modifier: Modifier = Modifier) {
+    val userScenes by presets.user.collectAsState()
+    var editing by remember { mutableStateOf(false) } // 삭제 모드: 사용자 프리셋을 탭하면 지운다
+
     Column(
         modifier
             .fillMaxHeight()
@@ -52,16 +61,29 @@ fun LightPanel(light: StudioLight, lighting: Lighting, studio: StudioVehicle, mo
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        Section("씬") {
-            val current = Scenes.matching(light)
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Scenes.ALL.forEach { scene ->
-                    Chip(scene.name, selected = current?.id == scene.id) {
+        Section("프리셋") {
+            val all = Scenes.BUILT_IN + userScenes
+            val current = Scenes.matching(light, all)
+            FlowChips(all.map { scene ->
+                ChipSpec(
+                    text = if (editing && !scene.builtIn) "× ${scene.name}" else scene.name,
+                    selected = !editing && current?.id == scene.id,
+                    danger = editing && !scene.builtIn,
+                    enabled = !editing || !scene.builtIn,
+                ) {
+                    if (editing) {
+                        if (!scene.builtIn) presets.delete(scene.id)
+                    } else {
                         Scenes.applyLight(scene, light)
                         Scenes.applyVehicle(scene, lighting, studio)
                     }
                 }
+            })
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Chip("+ 지금 값 저장", selected = false) { presets.saveCurrent(light); editing = false }
+                if (userScenes.isNotEmpty()) Chip(if (editing) "완료" else "삭제", selected = editing) { editing = !editing }
             }
+            if (editing) Text("지울 프리셋을 탭하세요. 기본 프리셋은 지울 수 없습니다.", color = Dim, fontSize = 12.sp)
         }
 
         Section("링라이트") {
@@ -98,28 +120,38 @@ fun LightPanel(light: StudioLight, lighting: Lighting, studio: StudioVehicle, mo
             Section("앰비언트") {
                 ToggleRow("링라이트와 연동", light.ambientLinked) { light.ambientLinked = it }
                 lighting.ambient.forEach { (area, a) ->
-                    if (a.switchOptions.isNotEmpty()) {
-                        SwitchRow(area.label(), a.switch, a.switchOptions) { studio.setAmbientSwitch(area, it) }
-                    }
                     Text(
-                        "${area.label()} · 밝기 ${a.brightness ?: "?"} · 색 ${a.color?.let { "#%06X".format(it and 0xFFFFFF) } ?: "?"}",
+                        "${area.label()} · 밝기 ${a.brightness ?: "?"} · 색 ${a.color?.let { "#%06X".format(it and 0xFFFFFF) } ?: "?"}" +
+                            (a.switch?.let { " · ${it.name.lowercase()}" } ?: ""),
                         color = Dim, fontSize = 12.sp,
                     )
                 }
             }
         }
+    }
+}
 
-        if (lighting.hasCabin) {
-            Section("실내등") {
-                SwitchRow("실내등", lighting.cabin, lighting.cabinOptions) { studio.setCabin(it) }
-            }
-        }
+private data class ChipSpec(
+    val text: String,
+    val selected: Boolean,
+    val danger: Boolean = false,
+    val enabled: Boolean = true,
+    val onClick: () -> Unit,
+)
 
-        if (lighting.hasReading) {
-            Section("독서등") {
-                lighting.readingOptions.forEach { (area, options) ->
-                    SwitchRow(area.label(), lighting.reading[area], options) { studio.setReading(area, it) }
-                }
+/** 칩을 패널 폭에 맞춰 줄바꿈한다(글자 수 기준의 단순 배치. 패널 폭 380dp 에 칩 4~5개). */
+@Composable
+private fun FlowChips(chips: List<ChipSpec>) {
+    val rows = mutableListOf<MutableList<ChipSpec>>()
+    var width = 0
+    chips.forEach { c ->
+        val w = c.text.length * 14 + 28 // 대략의 폭(dp)
+        if (rows.isEmpty() || width + w > 340) { rows += mutableListOf(c); width = w } else { rows.last() += c; width += w + 6 }
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        rows.forEach { row ->
+            Row(Modifier.wrapContentHeight(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                row.forEach { c -> Chip(c.text, c.selected, c.danger, c.enabled, c.onClick) }
             }
         }
     }
@@ -150,33 +182,26 @@ private fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Un
     }
 }
 
-/** 스위치 값 선택: capability 가 돌려준 옵션만 칩으로 보인다. */
 @Composable
-private fun SwitchRow(label: String, current: LightSwitch?, options: List<LightSwitch>, onSelect: (LightSwitch) -> Unit) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, color = Color.White, fontSize = 14.sp)
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            options.forEach { opt -> Chip(opt.label(), selected = current == opt) { onSelect(opt) } }
-        }
+private fun Chip(text: String, selected: Boolean, danger: Boolean = false, enabled: Boolean = true, onClick: () -> Unit) {
+    val bg = when {
+        selected -> Color.White
+        danger -> Danger.copy(alpha = 0.25f)
+        else -> Color(0xFF2A2E36)
     }
-}
-
-@Composable
-private fun Chip(text: String, selected: Boolean, onClick: () -> Unit) {
+    val fg = when {
+        selected -> Color.Black
+        !enabled -> Dim
+        danger -> Danger
+        else -> Color.White
+    }
     Text(
         text,
-        color = if (selected) Color.Black else Color.White,
+        color = fg,
         fontSize = 13.sp,
         modifier = Modifier
-            .background(if (selected) Color.White else Color(0xFF2A2E36), RoundedCornerShape(999.dp))
-            .clickable(onClick = onClick)
+            .background(bg, RoundedCornerShape(999.dp))
+            .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 6.dp),
     )
-}
-
-fun LightSwitch.label(): String = when (this) {
-    LightSwitch.OFF -> "끔"
-    LightSwitch.ON -> "켬"
-    LightSwitch.AUTOMATIC -> "자동"
-    LightSwitch.DAYTIME_RUNNING -> "주간"
 }

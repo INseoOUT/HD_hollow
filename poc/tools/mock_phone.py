@@ -2,7 +2,7 @@
 """가짜 폰. 차량 앱을 폰 앱 없이 검증한다 (plan/work-plan.md 2.4절 T1).
 
 8080 에서 기다리다 차가 붙으면 HELLO 를 보내고, --jpeg 가 있으면 그 파일을 15fps 로 FRAME 으로 반복 송신한다.
---sweep 이면 1초마다 색온도를 2700→6500K 로 올리는 LIGHT 를 보낸다. stdin 으로도 보낼 수 있다:
+--sweep 이면 1초마다 색온도를 2700→8000K 로 올리는 LIGHT 를 보낸다. stdin 으로도 보낼 수 있다:
     k 3500      색온도
     l 0.6       밝기
     p cyan      무드 색 (none 이면 색온도 모드)
@@ -101,7 +101,7 @@ def serve_client(sock, addr, state, jpeg, sweep):
                 send_light()
             except OSError:
                 return
-            k = 2700 if k >= 6500 else k + 100
+            k = 2700 if k >= 8000 else k + 100
 
     def stdin_loop():
         for line in sys.stdin:

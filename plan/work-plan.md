@@ -59,7 +59,7 @@ type(1B) | length(4B, big-endian) | payload
 
 | 필드 | 타입·범위 | 의미 |
 |---|---|---|
-| `kelvin` | Int 2700~6500 | 색온도. `preset`이 null일 때 적용. 폰 슬라이더 100K, 차 다이얼 1칸 250K |
+| `kelvin` | Int 2700~8000 (기본 7000, 푸른기 도는 흰색) | 색온도. `preset`이 null일 때 적용. 폰 슬라이더 100K, 차 다이얼 1칸 250K |
 | `level` | Float 0.0~1.0 | 밝기. 다이얼 1칸 0.05 |
 | `preset` | null \| `"cyan"` \| `"blue"` \| `"purple"` | 무드 색. null이면 색온도 모드 |
 | `src` | `"phone"` \| `"car"` | 보낸 쪽 |
@@ -69,7 +69,7 @@ type(1B) | length(4B, big-endian) | payload
 
 ### 2.3 색 변환
 
-켈빈 → ARGB는 흑체 복사 근사식(Tanner Helland) **구현 하나**를 `:shared`에 두고 양쪽이 같은 함수를 쓴다. 링라이트, 폰 미리보기, `setAmbientLightBrightnessColor`가 같은 값을 받는다. 참고값 2700K ≈ (255,169,87), 4000K ≈ (255,209,163), 6500K ≈ (255,249,253). 무드 색 ARGB 3개도 `:shared` 상수. 실내등·독서등은 켜고 끄기만 되므로 색온도 대상이 아니다.
+켈빈 → ARGB는 흑체 복사 근사식(Tanner Helland) **구현 하나**를 `:shared`에 두고 양쪽이 같은 함수를 쓴다. 링라이트, 폰 미리보기, `setAmbientLightBrightnessColor`가 같은 값을 받는다. 참고값(근사식 실제 출력) 2700K ≈ (255,167,87), 4000K ≈ (255,206,166), 6500K ≈ (255,254,250), 7000K ≈ (243,242,255), 8000K ≈ (221,230,255). 무드 색 ARGB 3개도 `:shared` 상수. 실내등·독서등은 켜고 끄기만 되므로 색온도 대상이 아니다.
 
 ### 2.4 공유 모듈과 도구 (I0 전에, 담당 A)
 

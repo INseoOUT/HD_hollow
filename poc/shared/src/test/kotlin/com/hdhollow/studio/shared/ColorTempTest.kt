@@ -27,18 +27,29 @@ class ColorTempTest {
     fun `켈빈 6500 은 거의 흰색`() = assertRgbNear(Triple(255, 254, 250), ColorTemp.kelvinToArgb(6500))
 
     @Test
-    fun `범위 밖 입력은 경계값과 같은 색`() {
-        assertEquals(ColorTemp.kelvinToArgb(2700), ColorTemp.kelvinToArgb(1000))
-        assertEquals(ColorTemp.kelvinToArgb(6500), ColorTemp.kelvinToArgb(9000))
+    fun `기본값 7000K 는 푸른기 도는 흰색`() {
+        val c = ColorTemp.kelvinToArgb(LightingParams.KELVIN_DEFAULT)
+        assertRgbNear(Triple(243, 242, 255), c)
+        assertTrue("파랑이 가장 세다", ColorTemp.blue(c) > ColorTemp.red(c) && ColorTemp.blue(c) > ColorTemp.green(c))
+        assertRgbNear(Triple(221, 230, 255), ColorTemp.kelvinToArgb(8000))
     }
 
     @Test
-    fun `색온도는 올라갈수록 파란 성분이 늘어난다`() {
-        var prev = -1
-        for (k in 2700..6500 step 100) {
-            val b = ColorTemp.blue(ColorTemp.kelvinToArgb(k))
-            assertTrue("$k K 에서 blue $b < 이전 $prev", b >= prev)
-            prev = b
+    fun `범위 밖 입력은 경계값과 같은 색`() {
+        assertEquals(ColorTemp.kelvinToArgb(2700), ColorTemp.kelvinToArgb(1000))
+        assertEquals(ColorTemp.kelvinToArgb(8000), ColorTemp.kelvinToArgb(12000))
+    }
+
+    @Test
+    fun `색온도는 올라갈수록 파란 성분이 늘고 붉은 성분이 줄어든다`() {
+        var prevB = -1
+        var prevR = 256
+        for (k in 2700..8000 step 100) {
+            val c = ColorTemp.kelvinToArgb(k)
+            assertTrue("$k K 에서 blue ${ColorTemp.blue(c)} < 이전 $prevB", ColorTemp.blue(c) >= prevB)
+            assertTrue("$k K 에서 red ${ColorTemp.red(c)} > 이전 $prevR", ColorTemp.red(c) <= prevR)
+            prevB = ColorTemp.blue(c)
+            prevR = ColorTemp.red(c)
         }
     }
 

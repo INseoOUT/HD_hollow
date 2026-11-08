@@ -61,4 +61,5 @@ dependencies {
     implementation(libs.androidx.ui)
     implementation(libs.androidx.material3)
     testImplementation(libs.junit)
+    testImplementation(libs.org.json) // 프리셋 JSON 테스트용 실제 org.json
 }

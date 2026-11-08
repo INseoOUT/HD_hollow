@@ -56,6 +56,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var studio: StudioVehicle
     private lateinit var link: StudioLinkClient
     private val light = StudioLight()
+    private lateinit var presets: ScenePresets
     private val exiting = MutableStateFlow(false)
     @Volatile private var lastIncoming: LightingParams? = null // 폰에서 온 마지막 값. 되돌려 보내지 않기 위해
 
@@ -63,6 +64,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         studio = StudioVehicle(this).also { it.start() }
+        presets = ScenePresets(this)
         val dm = resources.displayMetrics
         link = StudioLinkClient(dm.widthPixels, dm.heightPixels)
 
@@ -108,7 +110,7 @@ class MainActivity : ComponentActivity() {
 
         val dial = DialTarget(this, onRotate = light::rotate, onPress = { light.dialColor = !light.dialColor })
         val screen = ComposeView(this).apply {
-            setContent { MaterialTheme(colorScheme = darkColorScheme()) { StudioScreen(studio, light, link, exiting) } }
+            setContent { MaterialTheme(colorScheme = darkColorScheme()) { StudioScreen(studio, light, link, presets, exiting) } }
         }
         // RotaryService 요건: 창마다 FocusParkingView(맨 앞, FocusArea 밖) + 포커스 대상은 FocusArea 안.
         // 하나라도 없으면 회전을 버리거나 포커스를 Driving view로 넘긴다
@@ -140,7 +142,9 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun StudioScreen(studio: StudioVehicle, light: StudioLight, link: StudioLinkClient, exitingFlow: StateFlow<Boolean>) {
+private fun StudioScreen(
+    studio: StudioVehicle, light: StudioLight, link: StudioLinkClient, presets: ScenePresets, exitingFlow: StateFlow<Boolean>,
+) {
     val car by studio.state.collectAsState()
     val exiting by exitingFlow.collectAsState()
     val frame by link.frames.collectAsState()
@@ -189,7 +193,7 @@ private fun StudioScreen(studio: StudioVehicle, light: StudioLight, link: Studio
                         }
                     }
                     // 오른쪽: 조명 패널
-                    LightPanel(light, car.lighting, studio)
+                    LightPanel(light, car.lighting, studio, presets)
                 }
             }
         }

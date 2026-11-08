@@ -21,7 +21,7 @@ class LightingParamsTest {
         val p = LightingParams.fromJson("""{"v":1,"kelvin":100,"level":2.5,"preset":null,"src":"car","ts":0}""")!!
         assertEquals(LightingParams.KELVIN_MIN, p.kelvin)
         assertEquals(1f, p.level)
-        val q = LightingParams(kelvin = 9000, level = -1f).normalized()
+        val q = LightingParams(kelvin = 12000, level = -1f).normalized()
         assertEquals(LightingParams.KELVIN_MAX, q.kelvin)
         assertEquals(0f, q.level)
     }

@@ -41,8 +41,8 @@ data class LightingParams(
 
     companion object {
         const val KELVIN_MIN = 2700
-        const val KELVIN_MAX = 6500
-        const val KELVIN_DEFAULT = 4000
+        const val KELVIN_MAX = 8000 // 6500K 위로는 푸른기가 돈다
+        const val KELVIN_DEFAULT = 7000 // 기본은 푸른기 도는 흰색: 잡티·피부결이 덜 보인다 (2026-11-09 결정)
         const val KELVIN_DIAL_STEP = 250 // 다이얼 1칸
         const val KELVIN_SLIDER_STEP = 100 // 슬라이더 단위
         const val KELVIN_NOTIFICATION_STEP = 300 // 폰 알림 버튼 '따뜻하게·차갑게'
