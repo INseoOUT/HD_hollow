@@ -49,7 +49,8 @@ import kotlin.math.min
  * 폰 화면을 캡처해 차로 보내는 포그라운드 서비스. plan/work-plan.md 3절 P2~P7.
  *
  * API 34+ 순서: startForeground(mediaProjection 타입) → getMediaProjection → registerCallback → ImageReader → createVirtualDisplay.
- * 캡처는 긴 변 [Protocol.FRAME_MAX_SIDE]px 이하로 축소하고 [Protocol.FRAME_MAX_FPS]fps 로 제한한다.
+ * 가상 디스플레이는 정사각형(한 변 [Protocol.FRAME_MAX_SIDE]px 이하) 하나를 한 번만 만들고, 그 안에 AUTO_MIRROR 가 가운데 맞춘
+ * 폰 화면 영역([MirrorFit])만 잘라 [Protocol.FRAME_MAX_FPS]fps 로 보낸다. 회전해도 가상 디스플레이를 다시 만들거나 resize 하지 않는다.
  * 상태([status])와 조명 값([lighting])은 companion 의 StateFlow 로 액티비티·알림과 공유한다.
  */
 class MirrorService : Service() {
@@ -71,8 +72,9 @@ class MirrorService : Service() {
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private lateinit var link: StudioLink
 
-    private var capW = 0
-    private var capH = 0
+    private var side = 0 // 정사각형 가상 디스플레이 한 변
+    @Volatile private var content = MirrorFit.Rect(0, 0, 0, 0) // 그 안에서 폰 화면이 차지하는 영역
+    private val jpegOut = ByteArrayOutputStream(128 * 1024) // 프레임마다 새로 만들지 않는다
     private var lastSentNs = 0L
     private var fpsCount = 0
     private var fpsWindowNs = 0L
@@ -81,9 +83,10 @@ class MirrorService : Service() {
         override fun onDisplayAdded(displayId: Int) {}
         override fun onDisplayRemoved(displayId: Int) {}
         override fun onDisplayChanged(displayId: Int) {
+            // 회전(P7): 가상 디스플레이는 그대로 두고 내용 영역만 다시 계산한다. 회전 중 metrics 가 늦게 바뀌는 경우에 대비해 300ms 뒤 한 번 더
             if (displayId != Display.DEFAULT_DISPLAY) return
-            val (w, h) = captureSize()
-            if (w != capW || h != capH) handler.post { recreateCapture() } // 회전(P7)
+            handler.post { refreshContent() }
+            handler.postDelayed({ refreshContent() }, 300)
         }
     }
 
@@ -186,33 +189,35 @@ class MirrorService : Service() {
         advertise()
         UsbAccessoryLink.attachIfPresent(this, link) // 이미 USB 액세서리로 붙어 있으면 그 경로도 연다
         getSystemService(DisplayManager::class.java).registerDisplayListener(displayListener, handler)
-        handler.post { recreateCapture() }
+        handler.post { createCapture() }
         _status.update { it.copy(running = true, error = null) }
     }
 
-    /** 가상 디스플레이·ImageReader 를 (다시) 만든다. 회전으로 크기가 바뀔 때도 쓴다. */
-    private fun recreateCapture() {
+    /** 정사각형 가상 디스플레이·ImageReader 를 만든다(한 번만). 회전해도 그대로 두고 내용 영역만 바뀐다. */
+    private fun createCapture() {
         val p = projection ?: return
-        val (w, h) = captureSize()
-        val dpi = realMetrics().densityDpi
-        capW = w
-        capH = h
-        val newReader = ImageReader.newInstance(w, h, PixelFormat.RGBA_8888, 2)
-        newReader.setOnImageAvailableListener({ onImage(it) }, handler)
-        val old = reader
-        reader = newReader
-        val d = display
-        if (d == null) {
-            display = p.createVirtualDisplay(
-                "CarStudio", w, h, dpi, DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, newReader.surface, null, handler
-            )
-        } else {
-            d.resize(w, h, dpi)
-            d.surface = newReader.surface
+        if (display != null) return
+        val m = realMetrics()
+        side = MirrorFit.side(m.widthPixels, m.heightPixels, Protocol.FRAME_MAX_SIDE)
+        val r = ImageReader.newInstance(side, side, PixelFormat.RGBA_8888, 2)
+        r.setOnImageAvailableListener({ onImage(it) }, handler)
+        reader = r
+        display = p.createVirtualDisplay(
+            "CarStudio", side, side, m.densityDpi, DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, r.surface, null, handler
+        )
+        refreshContent()
+        Log.d(TAG, "캡처 ${side}x${side} @${m.densityDpi}dpi")
+    }
+
+    /** 지금 화면 크기(회전 반영)로 가상 디스플레이 안의 내용 영역을 다시 계산한다. */
+    private fun refreshContent() {
+        if (side == 0) return
+        val m = realMetrics()
+        val r = MirrorFit.contentRect(m.widthPixels, m.heightPixels, side)
+        if (r != content) {
+            content = r
+            Log.d(TAG, "내용 영역 $r (화면 ${m.widthPixels}x${m.heightPixels})")
         }
-        old?.close()
-        reusable = null
-        Log.d(TAG, "캡처 ${w}x${h} @${dpi}dpi")
     }
 
     private fun onImage(r: ImageReader) {
@@ -220,21 +225,24 @@ class MirrorService : Service() {
         try {
             val now = SystemClock.elapsedRealtimeNanos()
             if (now - lastSentNs < FRAME_INTERVAL_NS) return
+            val c = content
+            if (c.w <= 0 || c.h <= 0) return
             val plane = img.planes[0]
-            val rowStride = plane.rowStride
-            val pixelStride = plane.pixelStride
-            val paddedW = rowStride / pixelStride
+            val paddedW = plane.rowStride / plane.pixelStride
             var bmp = reusable
             if (bmp == null || bmp.width != paddedW || bmp.height != img.height) {
                 bmp = Bitmap.createBitmap(paddedW, img.height, Bitmap.Config.ARGB_8888)
                 reusable = bmp
             }
             bmp.copyPixelsFromBuffer(plane.buffer)
-            val cropped = if (paddedW != img.width) Bitmap.createBitmap(bmp, 0, 0, img.width, img.height) else bmp
-            val out = ByteArrayOutputStream(96 * 1024)
-            cropped.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)
-            if (cropped !== bmp) cropped.recycle()
-            val jpeg = out.toByteArray()
+            // 가운데 맞춰진 폰 화면 영역만 잘라낸다(회전 중 한두 프레임은 어긋날 수 있어 경계를 넘지 않게만 한다)
+            val cw = min(c.w, bmp.width - c.x)
+            val ch = min(c.h, bmp.height - c.y)
+            val cropped = Bitmap.createBitmap(bmp, c.x, c.y, cw, ch)
+            jpegOut.reset()
+            cropped.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, jpegOut)
+            cropped.recycle()
+            val jpeg = jpegOut.toByteArray()
             link.publishFrame(jpeg)
             lastSentNs = now
             fpsCount++
@@ -242,22 +250,13 @@ class MirrorService : Service() {
                 val fps = fpsCount
                 fpsCount = 0
                 fpsWindowNs = now
-                _status.update { it.copy(fps = fps, frame = "${img.width}×${img.height} · ${jpeg.size / 1024} KB") }
+                _status.update { it.copy(fps = fps, frame = "${cw}×${ch} · ${jpeg.size / 1024} KB") }
             }
         } catch (e: Exception) {
             Log.w(TAG, "프레임 처리 실패", e)
         } finally {
             img.close()
         }
-    }
-
-    /** 폰 화면을 긴 변 1200px 이하로 축소한 캡처 크기(짝수). */
-    private fun captureSize(): Pair<Int, Int> {
-        val m = realMetrics()
-        val scale = min(1f, Protocol.FRAME_MAX_SIDE.toFloat() / max(m.widthPixels, m.heightPixels))
-        val w = ((m.widthPixels * scale).toInt() / 2) * 2
-        val h = ((m.heightPixels * scale).toInt() / 2) * 2
-        return max(w, 2) to max(h, 2)
     }
 
     @Suppress("DEPRECATION")

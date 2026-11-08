@@ -35,7 +35,7 @@ class FloatingControl(private val context: Context) {
     fun show() {
         if (root != null || !canDraw(context)) return
         val params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
+            dp(PANEL_WIDTH_DP), // 버튼 글자('따뜻하게')가 줄바꿈되지 않게 폭 고정
             WindowManager.LayoutParams.WRAP_CONTENT,
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
             else @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE,
@@ -76,7 +76,7 @@ class FloatingControl(private val context: Context) {
             background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Color.WHITE) }
             layoutParams = LinearLayout.LayoutParams(dp(18), dp(18)).apply { marginEnd = dp(8) }
         }
-        label = TextView(context).apply { setTextColor(Color.WHITE); setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f) }
+        label = TextView(context).apply { setTextColor(Color.WHITE); setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f); isSingleLine = true }
         head.addView(swatch)
         head.addView(label)
         column.addView(head)
@@ -109,6 +109,7 @@ class FloatingControl(private val context: Context) {
                 this.text = text
                 setTextColor(Color.WHITE)
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+                isSingleLine = true
                 background = GradientDrawable().apply { cornerRadius = dp(999).toFloat(); setColor(0xFF2A2E36.toInt()) }
                 setPadding(dp(12), dp(6), dp(12), dp(6))
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
@@ -127,6 +128,8 @@ class FloatingControl(private val context: Context) {
     private fun dp(v: Int): Int = (v * context.resources.displayMetrics.density).toInt()
 
     companion object {
+        private const val PANEL_WIDTH_DP = 190
+
         fun canDraw(context: Context): Boolean = Settings.canDrawOverlays(context)
 
         fun presetLabel(name: String): String = when (name) {
