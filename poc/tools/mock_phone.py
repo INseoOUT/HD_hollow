@@ -6,6 +6,7 @@
     k 3500      색온도
     l 0.6       밝기
     p cyan      무드 색 (none 이면 색온도 모드)
+    s hide|show|stop  공유 상태(앱 가려짐·다시 보임·공유 끝남) STATUS
     q           종료
 차에서 온 LIGHT 와 HELLO 는 그대로 찍는다. 표준 라이브러리만 쓴다.
 
@@ -20,8 +21,8 @@ import sys
 import threading
 import time
 
-TYPE_HELLO, TYPE_FRAME, TYPE_LIGHT, TYPE_PING = 1, 2, 3, 4
-NAMES = {1: "HELLO", 2: "FRAME", 3: "LIGHT", 4: "PING"}
+TYPE_HELLO, TYPE_FRAME, TYPE_LIGHT, TYPE_PING, TYPE_STATUS = 1, 2, 3, 4, 5
+NAMES = {1: "HELLO", 2: "FRAME", 3: "LIGHT", 4: "PING", 5: "STATUS"}
 MAX = {TYPE_FRAME: 1 << 20, TYPE_LIGHT: 4 << 10}
 PING_INTERVAL = 5.0
 
@@ -116,12 +117,22 @@ def serve_client(sock, addr, state, jpeg, sweep):
                     state.level = float(parts[1])
                 elif cmd == "p" and len(parts) > 1:
                     state.preset = None if parts[1] == "none" else parts[1]
+                elif cmd == "s" and len(parts) > 1:
+                    st = {"hide": {"visible": False}, "show": {"visible": True}, "stop": {"stopped": True, "reason": "projection"}}.get(parts[1])
+                    if st is None:
+                        print("s hide|show|stop", flush=True)
+                        continue
+                    try:
+                        send(TYPE_STATUS, json.dumps({"v": 1, "visible": True, "stopped": False, "reason": None, **st}).encode())
+                    except OSError:
+                        return
+                    continue
                 elif cmd == "q":
                     stop.set()
                     sock.close()
                     return
                 else:
-                    print("명령: k <켈빈> | l <0..1> | p <cyan|blue|purple|none> | q", flush=True)
+                    print("명령: k <켈빈> | l <0..1> | p <cyan|blue|purple|none> | s <hide|show|stop> | q", flush=True)
                     continue
             try:
                 send_light()

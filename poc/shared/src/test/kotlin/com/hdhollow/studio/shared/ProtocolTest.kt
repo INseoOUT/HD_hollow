@@ -23,6 +23,7 @@ class ProtocolTest {
         assertEquals(Protocol.LIGHT_MAX, Protocol.maxPayload(Protocol.TYPE_LIGHT))
         assertEquals(Protocol.SMALL_MAX, Protocol.maxPayload(Protocol.TYPE_HELLO))
         assertEquals(Protocol.SMALL_MAX, Protocol.maxPayload(Protocol.TYPE_PING))
+        assertEquals(Protocol.SMALL_MAX, Protocol.maxPayload(Protocol.TYPE_STATUS))
         assertEquals(Protocol.SMALL_MAX, Protocol.maxPayload(0x7F))
     }
 
@@ -32,6 +33,7 @@ class ProtocolTest {
         assertEquals("FRAME", Protocol.typeName(Protocol.TYPE_FRAME))
         assertEquals("LIGHT", Protocol.typeName(Protocol.TYPE_LIGHT))
         assertEquals("PING", Protocol.typeName(Protocol.TYPE_PING))
+        assertEquals("STATUS", Protocol.typeName(Protocol.TYPE_STATUS))
         assertEquals("0x7f", Protocol.typeName(0x7F))
     }
 }

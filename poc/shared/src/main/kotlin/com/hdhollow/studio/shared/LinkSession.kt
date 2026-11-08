@@ -4,6 +4,7 @@ import java.io.IOException
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
 
@@ -28,11 +29,13 @@ class LinkSession(
         fun onHello(peer: Hello) {}
         fun onFrame(jpeg: ByteArray) {}
         fun onLight(params: LightingParams) {}
+        fun onStatus(status: ShareStatus) {}
         fun onClosed(reason: String) {}
     }
 
     private val started = AtomicBoolean(false)
-    private val closed = AtomicBoolean(false)
+    private val closed = AtomicBoolean(false) // 새 메시지를 받지 않음
+    private val transportClosed = AtomicBoolean(false) // 전송 계층까지 닫힘
     private val writeLock = Any()
     private val frameBusy = AtomicBoolean(false)
     // HELLO·LIGHT 는 호출자가 메인 스레드일 수 있어(NetworkOnMainThreadException) 쓰기 스레드 하나로 보낸다.
@@ -59,6 +62,10 @@ class LinkSession(
     fun sendLight(params: LightingParams): Boolean =
         enqueue(Protocol.TYPE_LIGHT, params.toJson().toByteArray(Charsets.UTF_8), "light")
 
+    /** 폰 → 차 공유 상태. 닫혔으면 false. */
+    fun sendStatus(status: ShareStatus): Boolean =
+        enqueue(Protocol.TYPE_STATUS, status.toJson().toByteArray(Charsets.UTF_8), "status")
+
     private fun enqueue(type: Int, payload: ByteArray, what: String): Boolean {
         if (closed.get()) return false
         return try {
@@ -81,13 +88,17 @@ class LinkSession(
 
     fun close(reason: String = "closed") {
         if (!closed.compareAndSet(false, true)) return
+        // 큐에 남은 작은 메시지(공유 끝남 STATUS 등)가 나갈 시간을 잠깐 준다. 쓰기 스레드 자신이 닫는 중이면 기다리지 않는다
+        writer.shutdown()
+        if (!Thread.currentThread().name.startsWith("link-write")) runCatching { writer.awaitTermination(300, TimeUnit.MILLISECONDS) }
         writer.shutdownNow()
+        transportClosed.set(true)
         runCatching { transport.close() }
         listener.onClosed(reason)
     }
 
     private fun trySend(type: Int, payload: ByteArray, what: String): Boolean {
-        if (closed.get()) return false
+        if (transportClosed.get()) return false
         return try {
             synchronized(writeLock) { MessageCodec.write(transport.output, type, payload) }
             true
@@ -113,6 +124,7 @@ class LinkSession(
                     Protocol.TYPE_FRAME -> listener.onFrame(m.payload)
                     Protocol.TYPE_LIGHT -> LightingParams.fromJson(String(m.payload, Charsets.UTF_8))
                         ?.let { p -> listener.onLight(if (p.ts > 0) p.copy(ts = p.ts + clockOffset) else p) }
+                    Protocol.TYPE_STATUS -> ShareStatus.fromJson(String(m.payload, Charsets.UTF_8))?.let(listener::onStatus)
                     Protocol.TYPE_PING -> Unit
                     else -> Unit // 모르는 type 은 버린다(앞으로 호환)
                 }

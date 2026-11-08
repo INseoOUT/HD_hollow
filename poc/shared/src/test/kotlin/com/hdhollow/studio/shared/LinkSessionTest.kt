@@ -31,9 +31,12 @@ class LinkSessionTest {
         val lastLight = AtomicReference<LightingParams>()
         val lastFrame = AtomicReference<ByteArray>()
         val reason = AtomicReference<String>()
+        val status = CountDownLatch(1)
+        val lastStatus = AtomicReference<ShareStatus>()
         override fun onHello(peer: Hello) { this.peer.set(peer); hello.countDown() }
         override fun onLight(params: LightingParams) { lastLight.set(params); light.countDown() }
         override fun onFrame(jpeg: ByteArray) { lastFrame.set(jpeg); frame.countDown() }
+        override fun onStatus(status: ShareStatus) { lastStatus.set(status); this.status.countDown() }
         override fun onClosed(reason: String) { this.reason.set(reason); closed.countDown() }
     }
 
@@ -119,6 +122,27 @@ class LinkSessionTest {
         assertTrue("차 ts 10000 - 5초 = 약 5000 이어야 한다: $back", back in 4_500L..5_000L)
 
         phoneSession.close()
+        carSession.close()
+    }
+
+    @Test(timeout = 5_000)
+    fun `STATUS 는 닫기 직전에 보내도 상대에 도착한다`() {
+        val p = Pair()
+        val phone = Recorder()
+        val car = Recorder()
+        val phoneSession = LinkSession(p.a, Hello(Protocol.ROLE_PHONE, 1080, 2400), phone)
+        val carSession = LinkSession(p.b, Hello(Protocol.ROLE_CAR, 1680, 1210), car)
+        phoneSession.start()
+        carSession.start()
+        assertTrue(car.hello.await(2, TimeUnit.SECONDS))
+
+        // 공유가 끝났다고 보내고 바로 닫는다(폰 서비스 종료 경로). 큐에 남은 메시지가 나간 뒤 닫혀야 한다
+        assertTrue(phoneSession.sendStatus(ShareStatus(stopped = true, reason = "projection")))
+        phoneSession.close("폰 종료")
+        assertTrue(car.status.await(2, TimeUnit.SECONDS))
+        assertEquals(ShareStatus(stopped = true, reason = "projection"), car.lastStatus.get())
+        assertTrue(car.closed.await(2, TimeUnit.SECONDS))
+        assertFalse(phoneSession.sendStatus(ShareStatus()))
         carSession.close()
     }
 }

@@ -15,6 +15,7 @@ object Protocol {
     const val TYPE_FRAME = 0x02 // 폰 → 차. JPEG
     const val TYPE_LIGHT = 0x03 // 양방향. LightingParams JSON
     const val TYPE_PING = 0x04 // 양방향. payload 없음
+    const val TYPE_STATUS = 0x05 // 폰 → 차. ShareStatus JSON(공유 앱이 가려짐·공유 끝남). 차가 검은 화면 대신 안내를 띄운다
 
     const val PING_INTERVAL_MS = 5_000L
     const val IDLE_TIMEOUT_MS = 15_000L // 이만큼 아무것도 안 오면 끊는다
@@ -46,6 +47,7 @@ object Protocol {
         TYPE_FRAME -> "FRAME"
         TYPE_LIGHT -> "LIGHT"
         TYPE_PING -> "PING"
+        TYPE_STATUS -> "STATUS"
         else -> "0x%02x".format(type)
     }
 }
