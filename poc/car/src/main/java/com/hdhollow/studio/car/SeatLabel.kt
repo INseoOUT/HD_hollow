@@ -20,3 +20,6 @@ fun SeatArea.label(): String {
         else -> v[0].toString()
     }
 }
+
+/** 저장용 키(원래 값 보관, [Originals]). 좌석 여러 개를 묶은 영역은 "+" 로 잇는다. */
+fun SeatArea.key(): String = values.joinToString("+") { it.toString() }

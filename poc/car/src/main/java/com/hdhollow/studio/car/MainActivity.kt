@@ -78,6 +78,7 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             studio.state.first { it.usable == false }
             exiting.value = true
+            studio.restoreNow() // 종료(3초 뒤)보다 먼저 되돌린다. 그 사이 죽어도 조명은 원래대로
             delay(3000)
             finish()
         }
