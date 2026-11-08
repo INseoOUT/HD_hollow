@@ -58,14 +58,15 @@ class StudioLinkClient(private val screenW: Int, private val screenH: Int) {
         }
     }
 
-    /** 차에서 바뀐 값을 폰에. 연결이 없으면 false. */
+    /** 차에서 바뀐 값을 폰에. ts 는 바꾼 시각 그대로(어느 쪽이 최신인지 가리는 기준). 연결이 없으면 false. */
     fun sendLight(params: LightingParams): Boolean =
-        session?.sendLight(params.copy(src = Protocol.ROLE_CAR, ts = System.currentTimeMillis())) ?: false
+        session?.sendLight(params.copy(src = Protocol.ROLE_CAR)) ?: false
 
     /** 세션 하나를 끝날 때까지 돌린다. */
     private suspend fun serve(transport: Transport) = suspendCancellableCoroutine { cont ->
         lateinit var s: LinkSession
-        s = LinkSession(transport, Hello(Protocol.ROLE_CAR, screenW, screenH), object : LinkSession.Listener {
+        val hello = Hello(Protocol.ROLE_CAR, screenW, screenH, now = System.currentTimeMillis())
+        s = LinkSession(transport, hello, object : LinkSession.Listener {
             override fun onHello(peer: Hello) {
                 Log.d(TAG, "폰 연결됨 ${peer.screenW}x${peer.screenH} (${transport.name})")
                 _connected.value = true

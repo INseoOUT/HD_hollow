@@ -68,6 +68,10 @@ class MainActivity : ComponentActivity() {
         val dm = resources.displayMetrics
         link = StudioLinkClient(dm.widthPixels, dm.heightPixels)
 
+        // 지난번 조명 값(사용자가 바꾼 것만, ts>0). 폰 값과 어느 쪽이 최신인지는 ts 로 가린다
+        val lightPrefs = getSharedPreferences("studio_light", MODE_PRIVATE)
+        lightPrefs.getString(KEY_LAST_LIGHT, null)?.let(LightingParams::fromJson)?.takeIf { it.ts > 0 }?.let(light::apply)
+
         // P·N이 아닌 기어를 한 번이라도 보면 경고 후 종료한다(그 사이 P로 돌아와도 되살리지 않음).
         // 실행 시점에 이미 D·R이면 아무것도 켜지 않은 채 같은 경로로 종료 = 주행 중 실행 차단.
         // 컴포지션 밖에서 감시: D에서 Pleos가 앱을 가려 onStop이 오면 Compose 재구성이 멈추기 때문
@@ -85,14 +89,20 @@ class MainActivity : ComponentActivity() {
             active.collectLatest { ok -> if (ok) link.run { PhoneLink.connect(this@MainActivity) } }
         }
 
-        // 폰에서 온 조명 값을 그대로 받는다
+        // 폰에서 온 조명 값. 내 값보다 최신일 때만 받는다(마지막으로 바뀐 쪽이 기준. 재접속 때 차 기본값이 폰 값을 덮지 않도록)
         lifecycleScope.launch {
             link.incomingLight.collect { p ->
-                if (p.src != Protocol.ROLE_CAR) {
+                if (p.src != Protocol.ROLE_CAR && p.supersedes(light.params(Protocol.ROLE_CAR))) {
                     lastIncoming = p
                     light.apply(p)
                 }
             }
+        }
+
+        // 바뀐 값을 저장해 다음 실행에 이어 쓴다
+        lifecycleScope.launch {
+            snapshotFlow { light.params(Protocol.ROLE_CAR) }.debounce(300)
+                .collect { if (it.ts > 0) lightPrefs.edit().putString(KEY_LAST_LIGHT, it.toJson()).apply() }
         }
 
         // 내 조명 값 → 폰(폰에서 온 값은 되돌려 보내지 않음) + 앰비언트 연동. 150ms 디바운스.
@@ -138,6 +148,10 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         studio.stop() // 조명 원래 값 복원 포함
         super.onDestroy()
+    }
+
+    companion object {
+        private const val KEY_LAST_LIGHT = "last"
     }
 }
 
