@@ -36,6 +36,7 @@ class StudioLight {
     var preset by mutableStateOf<String?>(null)
     var dialColor by mutableStateOf(false) // 다이얼이 조절하는 대상: false=밝기, true=색온도 (화면 터치·nudge 로 전환)
     var ambientLinked by mutableStateOf(true) // 링라이트 색·밝기를 앰비언트에도 넣는다(패널 토글)
+    var fullLight by mutableStateOf(false) // 풀 라이트 모드: 모니터·패널을 숨기고 앱 영역 전체를 조명으로
 
     fun rotate(step: Int) {
         if (dialColor) chooseKelvin(LightLogic.stepKelvin(kelvin, step)) else level = LightLogic.stepLevel(level, step)

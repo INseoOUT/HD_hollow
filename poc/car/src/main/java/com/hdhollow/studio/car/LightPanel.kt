@@ -52,6 +52,18 @@ fun LightPanel(light: StudioLight, lighting: Lighting, studio: StudioVehicle, mo
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
+        Section("씬") {
+            val current = Scenes.matching(light)
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Scenes.ALL.forEach { scene ->
+                    Chip(scene.name, selected = current?.id == scene.id) {
+                        Scenes.applyLight(scene, light)
+                        Scenes.applyVehicle(scene, lighting, studio)
+                    }
+                }
+            }
+        }
+
         Section("링라이트") {
             LabelRow("밝기", "${(light.level * 100).roundToInt()}%")
             Slider(light.level, { light.level = it }, Modifier.fillMaxWidth())
@@ -74,8 +86,12 @@ fun LightPanel(light: StudioLight, lighting: Lighting, studio: StudioVehicle, mo
                     )
                 }
             }
-            // 에뮬레이터에선 다이얼 누름·nudge가 앱에 안 와서(RotaryService가 소비) 터치로 전환
-            Chip("다이얼: ${if (light.dialColor) "색온도" else "밝기"} ⇄", selected = false) { light.dialColor = !light.dialColor }
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                // 에뮬레이터에선 다이얼 누름·nudge가 앱에 안 와서(RotaryService가 소비) 터치로 전환
+                Chip("다이얼: ${if (light.dialColor) "색온도" else "밝기"} ⇄", selected = false) { light.dialColor = !light.dialColor }
+                // 폰 화면을 직접 봐야 할 때(화상회의): 모니터·패널을 숨기고 전체를 조명으로. 화면 탭으로 복귀
+                Chip("풀 라이트", selected = light.fullLight) { light.fullLight = true }
+            }
         }
 
         if (lighting.ambient.isNotEmpty()) {

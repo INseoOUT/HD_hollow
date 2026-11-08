@@ -5,6 +5,7 @@ import android.widget.FrameLayout
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -24,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.text.style.TextAlign
@@ -150,33 +152,47 @@ private fun StudioScreen(studio: StudioVehicle, light: StudioLight, link: Studio
             .fillMaxSize()
             .background(edgeColor) // 바깥 = 링라이트
     ) {
-        // 안쪽 창: 밝기가 올라가면 테두리가 두꺼워진다
-        Box(
-            Modifier.fillMaxSize()
-                .padding((8 + 72 * light.level).dp)
-                .clip(RoundedCornerShape(INNER_RADIUS))
-                .background(Color.Black)
-                .padding(12.dp)
-        ) {
-            Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                // 왼쪽: 폰 화면 모니터(세로 영상은 Fit, 남는 폭은 검정)
-                Box(Modifier.weight(1f).fillMaxHeight()) {
-                    val f = frame
-                    if (f != null) {
-                        Image(f.asImageBitmap(), "phone screen", Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
-                    } else {
-                        Text(
-                            if (connected) "폰 화면을 기다리는 중…\n폰에서 화면 공유를 시작해 주세요"
-                            else "폰 화면 연결 대기 중\n폰을 연결하고 Car Studio에서 화면 공유를 시작해 주세요",
-                            Modifier.align(Alignment.Center), color = Color.Gray, fontSize = 22.sp, textAlign = TextAlign.Center
-                        )
+        if (light.fullLight) {
+            // 풀 라이트(C13): 모니터·패널을 숨기고 앱 영역 전체를 조명으로. 밝기는 색의 밝기로. 탭하면 복귀, 다이얼은 그대로
+            Box(
+                Modifier.fillMaxSize()
+                    .background(lerp(Color.Black, edgeColor, 0.3f + 0.7f * light.level))
+                    .clickable { light.fullLight = false },
+                contentAlignment = Alignment.BottomCenter
+            ) {
+                Text(
+                    "풀 라이트 · 다이얼로 밝기·색온도 조절 · 화면을 탭하면 돌아갑니다",
+                    color = Color(0x99000000), fontSize = 16.sp, modifier = Modifier.padding(24.dp)
+                )
+            }
+        } else {
+            // 안쪽 창: 밝기가 올라가면 테두리가 두꺼워진다
+            Box(
+                Modifier.fillMaxSize()
+                    .padding((8 + 72 * light.level).dp)
+                    .clip(RoundedCornerShape(INNER_RADIUS))
+                    .background(Color.Black)
+                    .padding(12.dp)
+            ) {
+                Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    // 왼쪽: 폰 화면 모니터(세로 영상은 Fit, 남는 폭은 검정)
+                    Box(Modifier.weight(1f).fillMaxHeight()) {
+                        val f = frame
+                        if (f != null) {
+                            Image(f.asImageBitmap(), "phone screen", Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                        } else {
+                            Text(
+                                if (connected) "폰 화면을 기다리는 중…\n폰에서 화면 공유를 시작해 주세요"
+                                else "폰 화면 연결 대기 중\n폰을 연결하고 Car Studio에서 화면 공유를 시작해 주세요",
+                                Modifier.align(Alignment.Center), color = Color.Gray, fontSize = 22.sp, textAlign = TextAlign.Center
+                            )
+                        }
                     }
+                    // 오른쪽: 조명 패널
+                    LightPanel(light, car.lighting, studio)
                 }
-                // 오른쪽: 조명 패널
-                LightPanel(light, car.lighting, studio)
             }
         }
-
         val notice = when {
             exiting && car.gearFailed -> "기어 상태를 확인할 수 없어 스튜디오를 종료합니다."
             exiting -> "주행 기어(D·R)에서는 스튜디오를 사용할 수 없어 종료합니다.\nP 또는 N에서 다시 실행해 주세요."
