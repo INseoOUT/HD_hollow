@@ -6,7 +6,6 @@ lifecycle = "2.9.0"
 activityCompose = "1.10.1"
 composeBom = "2024.04.01"
 vehicleSdk = "2.3.2"
-camerax = "1.4.2"
 carUi = "2.6.0"
 junit = "4.13.2"
 orgJson = "20240303" # 단위 테스트에서 org.json 을 쓰기 위해(안드로이드 스텁은 호출 시 예외)
@@ -20,8 +19,6 @@ androidx-ui = { group = "androidx.compose.ui", name = "ui" }
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
 vehicle-sdk = { module = "ai.pleos.playground:Vehicle", version.ref = "vehicleSdk" }
 car-ui-lib = { module = "com.android.car.ui:car-ui-lib", version.ref = "carUi" }
-camerax-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }
-camerax-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 org-json = { group = "org.json", name = "json", version.ref = "orgJson" }
 
