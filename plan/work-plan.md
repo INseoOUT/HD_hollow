@@ -50,6 +50,7 @@ type(1B) | length(4B, big-endian) | payload
 | 0x02 | `FRAME` | 폰 → 차 | JPEG 바이트 | 긴 변 ≤ 1200px, ≤ 15fps. 폰은 **최신 프레임만** 보낸다(쓰는 중이면 건너뜀). 상한 1MB |
 | 0x03 | `LIGHT` | 양방향 | JSON `LightingParams` | 아래 표. 받은 값이 내 값보다 최신(`supersedes`)일 때만 적용. `src`가 자기 것이면 무시. 받은 값은 자기 UI에만 반영하고 되돌려 보내지 않는다 |
 | 0x04 | `PING` | 양방향 | 없음 | 5초마다. 15초 무수신이면 끊고, 차가 2초 뒤 재접속 |
+| 0x05 | `STATUS` | 폰 → 차 | JSON `{"v":1,"visible":true,"stopped":false,"reason":null}` | 공유 상태. `visible=false` 는 "앱 하나만 공유"의 그 앱이 가려짐(검은 프레임), `stopped=true` 는 공유 끝남(`reason` "user"\|"projection"). HELLO 를 받을 때 한 번, 바뀔 때마다 보낸다. 세션은 닫기 전에 큐를 300ms 까지 비운다(11/09) |
 
 `LightingParams`:
 
@@ -76,7 +77,7 @@ type(1B) | length(4B, big-endian) | payload
 | ID | 작업 | 내용 | 시간 |
 |---|---|---|---|
 | T0 | `:shared` 모듈 | Android library, 리소스·외부 의존성 없음(JSON은 플랫폼 `org.json`). `LightingParams.kt`(데이터 클래스, `toJson/fromJson`, 범위 클램프), `ColorTemp.kt`(`kelvinToArgb`, `MOOD_COLORS`), `Protocol.kt`(포트 8080, type 상수, 타임아웃), `MessageCodec.kt`(프레임 읽기·쓰기, `Transport` 인터페이스). `settings.gradle.kts`에 `include(":shared")`, 두 앱에 `implementation(project(":shared"))` | 1.5h |
-| T1 | `tools/mock_phone.py` | Python 표준 라이브러리만. 8080 listen, HELLO, `--jpeg 파일`을 주면 15fps로 FRAME 반복 송신, `LIGHT`는 1초마다 2700→6500K 스윕 또는 stdin `k 3500` / `l 0.6`, 받은 LIGHT는 출력. **A가 폰 앱 없이 차량 앱을 검증하는 도구** | 1h |
+| T1 | `tools/mock_phone.py` | Python 표준 라이브러리만. 8080 listen, HELLO, `--jpeg 파일`을 주면 15fps로 FRAME 반복 송신, `LIGHT`는 1초마다 2700→6500K 스윕 또는 stdin `k 3500` / `l 0.6` / `s hide|show|stop`(STATUS), 받은 LIGHT는 출력. **A가 폰 앱 없이 차량 앱을 검증하는 도구**. 두 앱의 debug 빌드에는 `DebugReceiver`(adb 브로드캐스트로 조명 값·프리셋 변경)가 있어 탭 좌표 없이 자동 테스트한다(11/09) | 1h |
 | T2 | `tools/mock_car.py` | 127.0.0.1:8080에 접속, HELLO, FRAME 크기·fps 출력, 받은 LIGHT 출력, stdin으로 LIGHT 송신. **B가 차량 앱 없이 폰 앱을 검증하는 도구** | 0.5h |
 
 T0 머지 뒤 `settings.gradle.kts`·`libs.versions.toml`은 동결한다(충돌 지점).

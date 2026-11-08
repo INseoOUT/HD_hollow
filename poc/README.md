@@ -11,8 +11,8 @@
 | 모듈 | 하는 일 |
 |---|---|
 | `shared/` | 폰↔차 계약. `Protocol`(포트 8080, 메시지 HELLO/FRAME/LIGHT/PING, 상한·주기), `MessageCodec`(type 1B \| length 4B \| payload), `LightingParams`(색온도 2700~8000K·기본 7000K·밝기·무드 색 JSON), `ColorTemp`(켈빈→ARGB, 링과 앰비언트가 같은 함수), `Transport`(TCP·스트림), `LinkSession`(세션: HELLO 교환, 최신 FRAME 만, PING, 무수신 15초), `Aoa`(USB 액세서리 상수) |
-| `car/` | Pleos Connect 차량 앱. 기어 P·N 게이트(D·R 이면 경고 3초 후 종료, 실행 시점에도 같음), 링라이트(테두리 두께 = 밝기, 색온도/무드 색), 폰 화면 모니터, 조명 패널(프리셋 기본 4종 + 사용자 저장·삭제, 앰비언트 연동; 실내등·독서등은 프리셋으로만 바뀌고 종료 시 원래 값 복원. 원래 값은 `OriginalStore` 에 저장해 비정상 종료 뒤 다음 실행이 이어받아 복원), 풀 라이트 모드, 다이얼(`DialTarget`), 폰 연결(`PhoneLink`: USB 액세서리 → TCP[테더링 게이트웨이 → NSD → 10.0.2.2]) |
-| `phone/` | 폰 동반 앱. `MirrorService`(MediaProjection → 정사각 1200px 가상 디스플레이에서 폰 화면 영역(`MirrorFit`)만 잘라 15fps JPEG → 세션), `StudioLink`(TCP 8080 서버 + USB 액세서리 세션), 조명 조절 화면·알림 버튼(따뜻하게·차갑게·중지)·플로팅 컨트롤, NSD `_carstudio._tcp` 광고 |
+| `car/` | Pleos Connect 차량 앱. 기어 P·N 게이트(D·R 이면 경고 3초 후 종료, 실행 시점에도 같음), 링라이트(테두리 두께 = 밝기, 색온도/무드 색), 폰 화면 모니터, 조명 패널(프리셋 기본 4종 + 사용자 저장·삭제, 앰비언트 연동; 실내등·독서등은 프리셋으로만 바뀌고 종료 시 원래 값 복원. 원래 값은 `OriginalStore` 에 저장해 비정상 종료 뒤 다음 실행이 이어받아 복원), 풀 라이트 모드, 공유 상태 안내(공유 앱이 가려지면 오버레이, 공유가 끝나면 문구), 다이얼(`DialTarget`), 폰 연결(`PhoneLink`: USB 액세서리 → TCP[테더링 게이트웨이 → NSD → 10.0.2.2]) |
+| `phone/` | 폰 동반 앱. `MirrorService`(MediaProjection → 정사각 1200px 가상 디스플레이에서 폰 화면 영역(`MirrorFit`)만 잘라 15fps JPEG → 세션), `StudioLink`(TCP 8080 서버 + USB 액세서리 세션), 조명 조절 화면·알림 버튼(따뜻하게·차갑게·중지)·플로팅 컨트롤, 공유 상태(STATUS: 앱 가려짐·공유 끝남) 전송과 '공유가 끝났어요' 알림(탭하면 재시작), NSD `_carstudio._tcp` 광고. 디버그 빌드에만 `DebugReceiver`(adb 로 조명 값 변경) |
 | `tools/` | `mock_phone.py`(가짜 폰: 차량 앱 단독 검증), `mock_car.py`(가짜 차: 폰 앱 단독 검증). 표준 라이브러리만 |
 
 연결 방향은 **차 → 폰**(폰이 listen). 에뮬레이터 NAT 에서 바깥으로 나가는 접속만 되고, USB 테더링에서도 폰이 게이트웨이라 자연스럽다. 메시지는 전송 계층과 분리돼 있어 TCP 든 USB 액세서리든 앱 로직이 같다.
@@ -55,7 +55,7 @@ python3 tools/mock_car.py --save last.jpg                 # 폰 앱만: FRAME fp
 
 | 항목 | 방법 | 상태 |
 |---|---|---|
-| 메시지 코덱·세션(시계 보정 포함)·색 변환·조명 값 JSON·최신 값 규칙 | 단위 테스트 28개 | ✅ |
+| 메시지 코덱·세션(시계 보정·닫기 전 큐 비우기)·색 변환·조명 값 JSON·최신 값 규칙·공유 상태 JSON | 단위 테스트 31개 | ✅ |
 | 다이얼 단계·클램프, 프리셋 적용·일치·JSON, 조명 ts, 원래 값 JSON | 단위 테스트 13개 | ✅ |
 | 가상 디스플레이 안 화면 영역 계산(세로·가로·한 변) | 단위 테스트 4개 | ✅ |
 | 차량 앱: 조명 원래 값 읽기(앰비언트 밝기·색·스위치, 실내등, 독서등 4석) | Pleos 에뮬레이터 2.1.0 | ✅ |
@@ -69,6 +69,9 @@ python3 tools/mock_car.py --save last.jpg                 # 폰 앱만: FRAME fp
 | 재접속: 폰 중지 → 차 대기 → 폰 재시작(동의 다시) → 재연결. 차 앱 강제 종료 → 재실행 → 재연결 | 같음 | ✅ |
 | **재접속 때 값 기준 = 마지막으로 바뀐 쪽**: 차가 시안을 저장한 채 죽고 폰에서 블루로 바꾼 뒤 차 재실행 → 차가 블루 채택, 폰 값 유지. 정상 종료 뒤 재실행은 저장값(블루) 복원, 폰과 같은 ts 라 충돌 없음 | 같음 | ✅ |
 | 플로팅 컨트롤 폭 190dp 고정 | 폰 스크린샷 | ✅ '따뜻하게' 줄바꿈 없음 |
+| **공유 상태 안내**: 카메라 앱 하나 공유 중 HOME → 차 모니터에 "공유한 앱이 폰에서 가려져 있습니다" 오버레이, 카메라 복귀 → 사라짐. 카메라 종료 → 공유 종료 → 차 "폰 화면 공유가 끝났습니다", 폰 알림 "화면 공유가 끝났어요" → 탭 → 바로 동의 화면 | 폰 HOME·`am force-stop com.android.camera2`, 차 UI 덤프, `dumpsys notification` | ✅ 끝남 STATUS 가 소켓이 닫히기 전에 도착 |
+| 디버그 리시버(탭 좌표 없이 조명 값·프리셋 변경) | `am broadcast -n …/.DebugReceiver` | ✅ 차 '웜 뷰티' → 85%·3200K·앰비언트 #ffb87b, 폰 3300K·40% → 차 반영. 릴리스 APK 에는 리시버 없음 |
+| fps 단계별 시간 로그(폰 복사·크롭/압축/전송, 차 디코드) | logcat 1초 평균 | ⚠️ 에뮬레이터(카메라 앱 공유 중) 복사 0.4~1.6초·압축 0.8~3.3초 → 1fps, 차 디코드 10~33ms. 에뮬레이터 수치라 실기기에서 다시 읽어야 한다 |
 | fps | 폰 상태 표시 | ⚠️ 에뮬레이터 안 에뮬레이터라 화면이 계속 바뀌어도 4~5fps(JPEG 압축 병목 추정). 실기기 확인 필요 |
 | 차량 측 CPU | `adb shell top` | 4~5fps 송출 중 0~6.6%. 15fps 에서는 재측정 필요 |
 | USB 테더링 게이트웨이, NSD 탐색·광고 | 실기기·실차 | ⬜ 미확인(에뮬레이터로 불가) |
@@ -82,8 +85,11 @@ python3 tools/mock_car.py --save last.jpg                 # 폰 앱만: FRAME fp
 - 영상은 JPEG 프레임(15fps, 긴 변 1200px). 차량 CPU 가 높으면 H.264(`MediaCodec`)로 교체한다.
 - 조명 값은 양쪽이 같은 값을 들고 **마지막으로 바뀐 쪽(ts)** 이 기준이다. 같은 시각이면 폰, 기본값(ts 0)은 항상 진다. 기기 간 시계 차이는 HELLO 의 `now` 로 보정한다. 양쪽 다 마지막 값을 저장한다.
 - `FLAG_SECURE` 를 건 앱(DRM·금융)은 검게 캡처된다. 카메라·라이브 UI 는 보통 해당 없음(실기기 확인 필요).
-- Android 14+ 는 화면 공유 동의를 세션마다 받고 토큰이 1회용이다. 끊기면 "화면 공유 시작"을 다시 누른다.
+- Android 14+ 는 화면 공유 동의를 세션마다 받고 토큰이 1회용이다. 끊기면 "화면 공유 시작"을 다시 누른다(공유 앱 종료로 끝났으면 알림 탭 한 번).
+- "앱 하나만 공유"는 Android 동작상 그 앱이 뒤로 가면 검은 프레임이 오고 그 앱이 종료되면 공유도 끝난다. 폰이 STATUS 로 알리고 차가 이유를 띄운다.
+- 이 Mac 의 adb 37.0.1 서버는 몇 초마다 죽는다. platform-tools 35.0.2 를 따로 받아 그 adb 로 서버를 띄우면 안정적이었다(2026-11-09). 클라이언트와 서버 버전이 다르면 서로 죽이므로 한 버전만 쓴다.
 - 실내등·독서등은 스위치 변경 리스너가 없어 상태(켜짐/꺼짐) 리스너로 근사한다. 바깥에서 AUTOMATIC 으로 바꾸면 패널에는 ON 으로 보일 수 있다.
 - 앰비언트 set 은 `CONTROL_CAR_LIGHTS` 권한이 필요하다(에뮬레이터 2.1.0 확인). Playground 의 Vehicle Control 은 "준비 중".
 - 다이얼 누름·nudge 는 RotaryService 가 가져가서 앱에 오지 않는다. 밝기↔색온도 전환은 패널 칩으로. 터치 후 첫 회전 1칸은 포커스 복구에 쓰인다.
-- 로그: `adb logcat -s StudioVehicle StudioLink PhoneLink PhoneAddress UsbHostLink DialTarget` (차), `adb logcat -s MirrorService StudioLink UsbAccessoryLink` (폰).
+- 로그: `adb logcat -s StudioVehicle StudioLink PhoneLink PhoneAddress UsbHostLink DialTarget DebugReceiver` (차), `adb logcat -s MirrorService StudioLink UsbAccessoryLink DebugReceiver` (폰). 폰은 1초마다 `Nfps 복사·크롭 Xms 압축 Yms 전송 Zms`, 차는 `디코드 N장 평균 Xms` 를 찍는다.
+- 디버그 빌드 자동화: `adb shell am broadcast -n com.hdhollow.studio.phone/.DebugReceiver --ei kelvin 3300 --ef level 0.9 --es preset cyan --ez floating true`, `adb shell "am broadcast -n com.hdhollow.studio.car/.DebugReceiver --es scene '웜 뷰티' --ez full true"`.
