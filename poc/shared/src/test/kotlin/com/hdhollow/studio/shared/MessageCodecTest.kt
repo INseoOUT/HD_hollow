@@ -71,9 +71,11 @@ class MessageCodecTest {
 
     @Test
     fun `Hello 왕복과 버전`() {
-        val h = Hello(Protocol.ROLE_CAR, 1680, 1210)
+        val h = Hello(Protocol.ROLE_CAR, 1680, 1210, now = 1731000000000L)
         assertEquals(h, Hello.fromJson(h.toJson()))
         assertEquals(Protocol.VERSION, h.v)
+        // now 가 없는 옛 HELLO 는 0(보정 없음)
+        assertEquals(0L, Hello.fromJson("""{"v":1,"role":"phone","screen":[1080,2400]}""")!!.now)
         assertNull(Hello.fromJson("{"))
     }
 }

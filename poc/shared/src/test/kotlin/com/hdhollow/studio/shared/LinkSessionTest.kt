@@ -92,4 +92,33 @@ class LinkSessionTest {
         assertTrue(car.closed.await(Protocol.PING_INTERVAL_MS + 2_000, TimeUnit.MILLISECONDS))
         assertTrue(car.reason.get().contains("무수신"))
     }
+
+    @Test(timeout = 5_000)
+    fun `LIGHT 의 ts 는 상대 HELLO 의 now 로 내 시계에 맞춘다`() {
+        val p = Pair()
+        val phone = Recorder()
+        val car = Recorder()
+        // 폰 시계가 5초 느리다(세션의 now 와 HELLO 의 now 둘 다)
+        val phoneClock = { System.currentTimeMillis() - 5_000 }
+        val phoneSession = LinkSession(p.a, Hello(Protocol.ROLE_PHONE, 1080, 2400, now = phoneClock()), phone, now = phoneClock)
+        val carSession = LinkSession(p.b, Hello(Protocol.ROLE_CAR, 1680, 1210, now = System.currentTimeMillis()), car)
+        phoneSession.start()
+        carSession.start()
+        assertTrue(car.hello.await(2, TimeUnit.SECONDS))
+        assertTrue(phone.hello.await(2, TimeUnit.SECONDS))
+
+        assertTrue(phoneSession.sendLight(LightingParams(kelvin = 3300, src = Protocol.ROLE_PHONE, ts = 1_000)))
+        assertTrue(car.light.await(2, TimeUnit.SECONDS))
+        val ts = car.lastLight.get().ts
+        assertTrue("폰 ts 1000 + 5초 차이 = 약 6000 이어야 한다: $ts", ts in 6_000L..6_500L)
+
+        // 반대 방향: 차 ts 는 폰 시계로 5초 빼서 도착한다
+        assertTrue(carSession.sendLight(LightingParams(kelvin = 4000, src = Protocol.ROLE_CAR, ts = 10_000)))
+        assertTrue(phone.light.await(2, TimeUnit.SECONDS))
+        val back = phone.lastLight.get().ts
+        assertTrue("차 ts 10000 - 5초 = 약 5000 이어야 한다: $back", back in 4_500L..5_000L)
+
+        phoneSession.close()
+        carSession.close()
+    }
 }

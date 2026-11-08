@@ -14,6 +14,7 @@ import kotlin.concurrent.thread
  * - 받은 메시지는 [Listener] 로 넘긴다. HELLO 의 버전이 다르면 끊는다.
  * - [Protocol.IDLE_TIMEOUT_MS] 동안 아무것도 안 오면 끊는다. 끊김은 [Listener.onClosed] 한 번으로 알린다.
  * - 쓰기는 한 번에 하나(잠금). FRAME 은 [offerFrame] 으로 넣되, 앞 프레임을 아직 쓰는 중이면 버린다(최신 프레임만).
+ * - LIGHT 의 ts 는 상대 HELLO 의 now 와 내 시계의 차이만큼 보정해 넘긴다(어느 쪽이 최신인지 가리는 비교용).
  *
  * 외부 의존성 없이 스레드로 만든다(코루틴은 shared 에 없다).
  */
@@ -42,6 +43,7 @@ class LinkSession(
     @Volatile private var lastRx = now()
     @Volatile var peer: Hello? = null
         private set
+    @Volatile private var clockOffset = 0L // 내 시계 - 상대 시계
 
     val isOpen: Boolean get() = !closed.get()
 
@@ -105,10 +107,12 @@ class LinkSession(
                         val h = Hello.fromJson(String(m.payload, Charsets.UTF_8))
                         if (h == null || h.v != Protocol.VERSION) return close("프로토콜 버전 불일치: ${h?.v}")
                         peer = h
+                        if (h.now > 0) clockOffset = now() - h.now
                         listener.onHello(h)
                     }
                     Protocol.TYPE_FRAME -> listener.onFrame(m.payload)
-                    Protocol.TYPE_LIGHT -> LightingParams.fromJson(String(m.payload, Charsets.UTF_8))?.let(listener::onLight)
+                    Protocol.TYPE_LIGHT -> LightingParams.fromJson(String(m.payload, Charsets.UTF_8))
+                        ?.let { p -> listener.onLight(if (p.ts > 0) p.copy(ts = p.ts + clockOffset) else p) }
                     Protocol.TYPE_PING -> Unit
                     else -> Unit // 모르는 type 은 버린다(앞으로 호환)
                 }

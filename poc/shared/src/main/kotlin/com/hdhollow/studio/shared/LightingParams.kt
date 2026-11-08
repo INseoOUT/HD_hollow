@@ -10,7 +10,8 @@ import org.json.JSONObject
  * - [level] 밝기 0..1.
  * - [preset] 무드 색 이름([PRESETS] 중 하나) 또는 null(색온도 모드).
  * - [src] 보낸 쪽. 자기 것이 돌아오면 무시한다.
- * - [ts] 로그용. 기기 간 시계 차이가 있어 비교에 쓰지 않는다.
+ * - [ts] 사용자가 이 값을 마지막으로 바꾼 시각(ms). 0 이면 한 번도 안 바꾼 기본값. 재접속 때 어느 쪽을 따를지 [supersedes] 가 정한다.
+ *   기기 간 시계 차이는 [LinkSession] 이 HELLO 의 now 로 받는 쪽 시계에 맞춰 보정한다.
  */
 data class LightingParams(
     val kelvin: Int = KELVIN_DEFAULT,
@@ -29,6 +30,13 @@ data class LightingParams(
     /** 조명에 영향을 주는 값만 비교(src·ts 제외). 되돌아온 자기 값을 걸러낼 때 쓴다. */
     fun sameLight(other: LightingParams): Boolean =
         kelvin == other.kelvin && level == other.level && preset == other.preset
+
+    /**
+     * 재접속·충돌 때 이 값이 [current] 를 대체해야 하는가. 마지막으로 바뀐 쪽(ts 가 큰 쪽)이 기준이고,
+     * 같은 시각이면 폰이 보낸 값이 이긴다. 기본값(ts 0)은 바뀐 값에 항상 진다. (2026-11-09 결정)
+     */
+    fun supersedes(current: LightingParams): Boolean =
+        ts > current.ts || (ts == current.ts && src == Protocol.ROLE_PHONE && current.src != Protocol.ROLE_PHONE)
 
     fun toJson(): String = JSONObject()
         .put("v", Protocol.VERSION)

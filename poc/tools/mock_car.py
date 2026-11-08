@@ -115,7 +115,7 @@ def main():
             except OSError:
                 return
 
-    send(TYPE_HELLO, json.dumps({"v": 1, "role": "car", "screen": [1680, 1210]}).encode())
+    send(TYPE_HELLO, json.dumps({"v": 1, "role": "car", "screen": [1680, 1210], "now": int(time.time() * 1000)}).encode())
     threading.Thread(target=pings, daemon=True).start()
     threading.Thread(target=stdin_loop, daemon=True).start()
 

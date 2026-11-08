@@ -61,4 +61,19 @@ class LightingParamsTest {
         assertFalse(a.sameLight(b.copy(kelvin = 3100)))
         assertFalse(a.sameLight(b.copy(preset = "cyan")))
     }
+
+    @Test
+    fun `supersedes 는 ts 가 큰 쪽이 이기고 같으면 폰이 이기며 기본값은 진다`() {
+        val default = LightingParams(src = Protocol.ROLE_CAR) // ts 0
+        val changed = LightingParams(kelvin = 3300, src = Protocol.ROLE_PHONE, ts = 10)
+        assertTrue(changed.supersedes(default))
+        assertFalse(default.supersedes(changed))
+        assertTrue(changed.copy(ts = 11, src = Protocol.ROLE_CAR).supersedes(changed))
+        assertFalse(changed.copy(ts = 9, src = Protocol.ROLE_CAR).supersedes(changed))
+        // 같은 시각: 폰이 보낸 값이 차 값을 이기고 그 반대는 아니다. 둘 다 차 값이면 바꾸지 않는다
+        assertTrue(LightingParams(src = Protocol.ROLE_PHONE, ts = 5).supersedes(LightingParams(src = Protocol.ROLE_CAR, ts = 5)))
+        assertFalse(LightingParams(src = Protocol.ROLE_CAR, ts = 5).supersedes(LightingParams(src = Protocol.ROLE_PHONE, ts = 5)))
+        assertFalse(LightingParams(src = Protocol.ROLE_CAR, ts = 5).supersedes(LightingParams(src = Protocol.ROLE_CAR, ts = 5)))
+        assertFalse(default.supersedes(default))
+    }
 }

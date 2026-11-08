@@ -129,7 +129,7 @@ def serve_client(sock, addr, state, jpeg, sweep):
                 return
 
     try:
-        send(TYPE_HELLO, json.dumps({"v": 1, "role": "phone", "screen": [1080, 2400]}).encode())
+        send(TYPE_HELLO, json.dumps({"v": 1, "role": "phone", "screen": [1080, 2400], "now": int(time.time() * 1000)}).encode())
         send_light()
         threading.Thread(target=pings, daemon=True).start()
         if jpeg:

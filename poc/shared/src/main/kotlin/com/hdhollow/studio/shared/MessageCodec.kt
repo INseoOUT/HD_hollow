@@ -14,10 +14,13 @@ class Message(val type: Int, val payload: ByteArray) {
     override fun toString(): String = "${Protocol.typeName(type)}(${payload.size}B)"
 }
 
-/** 연결 직후 양쪽이 한 번 보내는 인사. 버전이 다르면 끊는다. */
-data class Hello(val role: String, val screenW: Int, val screenH: Int, val v: Int = Protocol.VERSION) {
+/**
+ * 연결 직후 양쪽이 한 번 보내는 인사. 버전이 다르면 끊는다.
+ * [now] 는 보낸 쪽 시계(ms). 받는 쪽이 LIGHT 의 ts 를 제 시계에 맞추는 데 쓴다. 0 이면 보정하지 않는다.
+ */
+data class Hello(val role: String, val screenW: Int, val screenH: Int, val v: Int = Protocol.VERSION, val now: Long = 0L) {
     fun toJson(): String = JSONObject()
-        .put("v", v).put("role", role).put("screen", org.json.JSONArray().put(screenW).put(screenH))
+        .put("v", v).put("role", role).put("screen", org.json.JSONArray().put(screenW).put(screenH)).put("now", now)
         .toString()
 
     companion object {
@@ -29,6 +32,7 @@ data class Hello(val role: String, val screenW: Int, val screenH: Int, val v: In
                 screenW = s?.optInt(0) ?: 0,
                 screenH = s?.optInt(1) ?: 0,
                 v = o.optInt("v", -1),
+                now = o.optLong("now", 0L),
             )
         } catch (_: JSONException) {
             null
