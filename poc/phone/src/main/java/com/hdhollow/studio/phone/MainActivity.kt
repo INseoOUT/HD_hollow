@@ -3,6 +3,7 @@ package com.hdhollow.studio.phone
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.hardware.usb.UsbManager
 import android.media.projection.MediaProjectionManager
 import android.net.Uri
 import android.os.Build
@@ -85,6 +86,19 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         // 오버레이 권한 설정에서 돌아오면 같은 요청을 다시 보내 플로팅 컨트롤이 뜨게 한다
         if (MirrorService.floating.value.on) MirrorService.setFloating(true)
+        handleUsbAccessory(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleUsbAccessory(intent)
+    }
+
+    /** 차가 AOA 로 폰을 액세서리 모드로 바꾸면 시스템이 이 인텐트로 앱을 띄운다. 송출 중이면 서비스가 그 경로를 연다(P13) */
+    private fun handleUsbAccessory(intent: Intent?) {
+        if (intent?.action != UsbManager.ACTION_USB_ACCESSORY_ATTACHED) return
+        if (MirrorService.status.value.running) startService(Intent(this, MirrorService::class.java).setAction(MirrorService.ACTION_ATTACH_USB))
     }
 
     private fun startSharing() {

@@ -78,9 +78,9 @@ class MainActivity : ComponentActivity() {
 
         val active = combine(studio.state, exiting) { s, e -> s.usable == true && !e }.distinctUntilChanged()
 
-        // 사용 가능한 동안만 폰과 연결한다. 끊기면 클라이언트가 2초마다 다시 붙는다
+        // 사용 가능한 동안만 폰과 연결한다(USB 액세서리 → TCP 순, PhoneLink). 끊기면 클라이언트가 2초마다 다시 붙는다
         lifecycleScope.launch {
-            active.collectLatest { ok -> if (ok) link.run { PhoneAddress.resolve(this@MainActivity) } }
+            active.collectLatest { ok -> if (ok) link.run { PhoneLink.connect(this@MainActivity) } }
         }
 
         // 폰에서 온 조명 값을 그대로 받는다

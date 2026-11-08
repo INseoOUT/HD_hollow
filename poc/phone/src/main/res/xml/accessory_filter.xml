@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 차(USB 호스트)가 AOA 로 보내는 문자열과 같아야 한다: shared Aoa.kt -->
+<resources>
+    <usb-accessory manufacturer="HDhollow" model="CarStudio" version="1" />
+</resources>

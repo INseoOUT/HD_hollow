@@ -144,6 +144,8 @@ class MirrorService : Service() {
             // 알림 버튼(P9). 촬영 앱이 앞에 있어도 상태바에서 색온도를 바꾼다. 알림 액션은 3개까지라 밝기는 플로팅 컨트롤·앱 화면에서
             ACTION_WARMER -> updateLighting { it.copy(kelvin = it.kelvin - LightingParams.KELVIN_NOTIFICATION_STEP, preset = null) }
             ACTION_COOLER -> updateLighting { it.copy(kelvin = it.kelvin + LightingParams.KELVIN_NOTIFICATION_STEP, preset = null) }
+            // 송출 중에 차가 USB 액세서리로 붙었을 때(P13). 액티비티가 USB_ACCESSORY_ATTACHED 를 받고 보낸다
+            ACTION_ATTACH_USB -> if (projection != null) UsbAccessoryLink.attachIfPresent(this, link)
             ACTION_START -> {
                 startForegroundCompat()
                 val code = intent.getIntExtra(EXTRA_RESULT_CODE, 0)
@@ -178,6 +180,7 @@ class MirrorService : Service() {
         }, handler)
         runCatching { link.start() }.onFailure { return fail("포트 ${Protocol.PORT} 를 열지 못했습니다: ${it.message}") }
         advertise()
+        UsbAccessoryLink.attachIfPresent(this, link) // 이미 USB 액세서리로 붙어 있으면 그 경로도 연다
         getSystemService(DisplayManager::class.java).registerDisplayListener(displayListener, handler)
         handler.post { recreateCapture() }
         _status.update { it.copy(running = true, error = null) }
@@ -331,6 +334,7 @@ class MirrorService : Service() {
         const val ACTION_STOP = "com.hdhollow.studio.phone.STOP"
         const val ACTION_WARMER = "com.hdhollow.studio.phone.WARMER"
         const val ACTION_COOLER = "com.hdhollow.studio.phone.COOLER"
+        const val ACTION_ATTACH_USB = "com.hdhollow.studio.phone.ATTACH_USB"
 
         /** 플로팅 컨트롤 요청. nonce 는 권한을 받고 돌아왔을 때 같은 값이라도 다시 시도하게 한다. */
         data class FloatingRequest(val on: Boolean = false, val nonce: Int = 0)

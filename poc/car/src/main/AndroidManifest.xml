@@ -9,6 +9,8 @@
     <uses-permission android:name="android.car.permission.CAR_POWERTRAIN" /> <!-- 기어(AAOS): P·N에서만 사용 -->
     <uses-permission android:name="android.permission.INTERNET" />       <!-- 폰 연결(영상·조명 값) -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" /> <!-- USB 테더링 네트워크에서 폰(게이트웨이) 찾기 -->
+    <!-- USB 액세서리 경로(2차): 차가 호스트로 폰을 연다. 없는 차에서도 설치되게 required=false -->
+    <uses-feature android:name="android.hardware.usb.host" android:required="false" />
 
     <application
         android:label="Car Studio"
