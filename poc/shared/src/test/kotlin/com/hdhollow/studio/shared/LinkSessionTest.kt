@@ -80,7 +80,8 @@ class LinkSessionTest {
         assertTrue(car.reason.get().contains("버전"))
     }
 
-    @Test(timeout = 5_000)
+    // PING 주기(5초)가 지나야 검사하므로 테스트 자체의 상한은 그보다 넉넉히
+    @Test(timeout = 12_000)
     fun `무수신 타임아웃이면 끊는다`() {
         val p = Pair()
         val car = Recorder()

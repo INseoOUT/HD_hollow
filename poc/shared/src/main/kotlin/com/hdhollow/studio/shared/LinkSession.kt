@@ -1,6 +1,9 @@
 package com.hdhollow.studio.shared
 
 import java.io.IOException
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
 
@@ -31,6 +34,11 @@ class LinkSession(
     private val closed = AtomicBoolean(false)
     private val writeLock = Any()
     private val frameBusy = AtomicBoolean(false)
+    // HELLO·LIGHT 는 호출자가 메인 스레드일 수 있어(NetworkOnMainThreadException) 쓰기 스레드 하나로 보낸다.
+    // FRAME 은 캡처 스레드에서 바로 쓴다(막혀도 되는 스레드). 두 경로 모두 writeLock 으로 한 번에 하나만 쓴다
+    private val writer: ExecutorService = Executors.newSingleThreadExecutor { r ->
+        Thread(r, "link-write ${transport.name}").apply { isDaemon = true }
+    }
     @Volatile private var lastRx = now()
     @Volatile var peer: Hello? = null
         private set
@@ -40,13 +48,24 @@ class LinkSession(
     fun start() {
         if (!started.compareAndSet(false, true)) return
         lastRx = now()
-        if (!trySend(Protocol.TYPE_HELLO, hello.toJson().toByteArray(Charsets.UTF_8), "hello")) return
+        enqueue(Protocol.TYPE_HELLO, hello.toJson().toByteArray(Charsets.UTF_8), "hello")
         thread(name = "link-read ${transport.name}", isDaemon = true) { readLoop() }
         thread(name = "link-ping ${transport.name}", isDaemon = true) { pingLoop() }
     }
 
+    /** 쓰기 스레드에 넣는다. 닫혔으면 false(실제 쓰기 실패는 세션 종료로 드러난다). */
     fun sendLight(params: LightingParams): Boolean =
-        trySend(Protocol.TYPE_LIGHT, params.toJson().toByteArray(Charsets.UTF_8), "light")
+        enqueue(Protocol.TYPE_LIGHT, params.toJson().toByteArray(Charsets.UTF_8), "light")
+
+    private fun enqueue(type: Int, payload: ByteArray, what: String): Boolean {
+        if (closed.get()) return false
+        return try {
+            writer.execute { trySend(type, payload, what) }
+            true
+        } catch (_: RejectedExecutionException) {
+            false
+        }
+    }
 
     /** 최신 프레임만. 앞 프레임을 쓰는 중이면 false 를 돌려주고 버린다. */
     fun offerFrame(jpeg: ByteArray): Boolean {
@@ -60,6 +79,7 @@ class LinkSession(
 
     fun close(reason: String = "closed") {
         if (!closed.compareAndSet(false, true)) return
+        writer.shutdownNow()
         runCatching { transport.close() }
         listener.onClosed(reason)
     }
