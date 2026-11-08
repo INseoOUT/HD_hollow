@@ -119,6 +119,16 @@ class MainActivity : ComponentActivity() {
                 }
         }
 
+        // 디버그 빌드의 DebugReceiver(adb 로 조명 값·프리셋 변경)용 고리
+        DebugHooks.light = light
+        DebugHooks.applyScene = { name ->
+            presets.all.firstOrNull { it.name == name }?.let { scene ->
+                Scenes.applyLight(scene, light)
+                Scenes.applyVehicle(scene, studio.state.value.lighting, studio)
+                true
+            } ?: false
+        }
+
         val dial = DialTarget(this, onRotate = light::rotate, onPress = { light.dialColor = !light.dialColor })
         val screen = ComposeView(this).apply {
             setContent { MaterialTheme(colorScheme = darkColorScheme()) { StudioScreen(studio, light, link, presets, exiting) } }
@@ -147,6 +157,8 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        DebugHooks.light = null
+        DebugHooks.applyScene = null
         studio.stop() // 조명 원래 값 복원 포함
         super.onDestroy()
     }
