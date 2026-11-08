@@ -1,61 +1,76 @@
-# 차량 안 스튜디오 PoC
+# 차량 안 스튜디오 — 앱 코드
 
-> 작성일: 2026-11-04
-> 목적: "가운데 화면 가장자리 = 링라이트, 가운데 = 폰 카메라 모니터, 다이얼로 밝기·색 조절" 컨셉이 Pleos 에뮬레이터에서 실제로 되는지 검증한다.
+> 작성일: 2026-11-09  
+> 기획: [../plan/submission-draft.md](../plan/submission-draft.md) · 계약·작업 순서: [../plan/work-plan.md](../plan/work-plan.md)  
+> 상태: 1차·2차 범위를 한 번에 구현한 상태(2026-11-09, 브랜치 `feat/pleos-hyundio`). 단위 테스트는 통과했고 에뮬레이터 확인은 아래 표 참고.
+
+폰 화면을 차 화면 가운데에 띄우고(모니터), 차 화면 가장자리와 실내 조명을 스튜디오 조명으로 쓰며, 다이얼·폰 어디서든 색온도·밝기를 맞춘다. 촬영·저장·라이브 송출은 사용자가 쓰던 폰 앱(기본 카메라·틱톡·유튜브 라이브)이 그대로 한다.
 
 ## 구성
 
 | 모듈 | 하는 일 |
 |---|---|
-| `car/` | Pleos Connect 차량 앱. 가장자리 조명(테두리 두께 = 밝기), 폰 영상 표시, 앰비언트 라이트 연동, 공조 풍량·창문 소음 경고, 기어 D/R이면 차단, 다이얼(`DialTarget.kt`)·키보드 입력 |
-| `phone/` | 폰 동반 앱. 카메라 → JPEG → MJPEG(HTTP, 포트 8080) 송출. 전면/후면 전환(전면만 좌우 반전), 가로·세로 회전(회전해도 송출 유지). 화면에 접속 주소 표시 |
+| `shared/` | 폰↔차 계약. `Protocol`(포트 8080, 메시지 HELLO/FRAME/LIGHT/PING, 상한·주기), `MessageCodec`(type 1B \| length 4B \| payload), `LightingParams`(색온도 2700~6500K·밝기·무드 색 JSON), `ColorTemp`(켈빈→ARGB, 링과 앰비언트가 같은 함수), `Transport`(TCP·스트림), `LinkSession`(세션: HELLO 교환, 최신 FRAME 만, PING, 무수신 15초), `Aoa`(USB 액세서리 상수) |
+| `car/` | Pleos Connect 차량 앱. 기어 P·N 게이트(D·R 이면 경고 3초 후 종료, 실행 시점에도 같음), 링라이트(테두리 두께 = 밝기, 색온도/무드 색), 폰 화면 모니터, 조명 패널(앰비언트 연동·켜짐, 실내등, 좌석별 독서등; 원래 값 복원), 씬 4종, 풀 라이트 모드, 다이얼(`DialTarget`), 폰 연결(`PhoneLink`: USB 액세서리 → TCP[테더링 게이트웨이 → NSD → 10.0.2.2]) |
+| `phone/` | 폰 동반 앱. `MirrorService`(MediaProjection 화면 캡처 → 긴 변 1200px·15fps JPEG → 세션), `StudioLink`(TCP 8080 서버 + USB 액세서리 세션), 조명 조절 화면·알림 버튼(따뜻하게·차갑게·중지)·플로팅 컨트롤, NSD `_carstudio._tcp` 광고 |
+| `tools/` | `mock_phone.py`(가짜 폰: 차량 앱 단독 검증), `mock_car.py`(가짜 차: 폰 앱 단독 검증). 표준 라이브러리만 |
 
-연결 방향은 **차 → 폰**이다(차가 폰 주소로 접속). 에뮬레이터 NAT 안에서도 바깥으로 나가는 접속은 되기 때문이다.
+연결 방향은 **차 → 폰**(폰이 listen). 에뮬레이터 NAT 에서 바깥으로 나가는 접속만 되고, USB 테더링에서도 폰이 게이트웨이라 자연스럽다. 메시지는 전송 계층과 분리돼 있어 TCP 든 USB 액세서리든 앱 로직이 같다.
 
-## 검증 항목
+## 빌드·테스트
 
-| # | 항목 | 확인 방법 | 결과 (2026-11-04, Pleos Connect v2.1.0 에뮬레이터) |
-|---|---|---|---|
-| 1 | Vehicle SDK 연결, 공조 풍량·창문 구독 | Virtual Console에서 풍량·창문 변경 → 좌상단 패널·경고 반영 | ✅ 연결됨. 풍량 3 수신 → "녹음 소음 주의" 경고 표시. 창문 4개 영역 구독 |
-| 2 | 앰비언트 밝기·색 set | 슬라이더·색 변경 → 패널 로그 | ⚠️ **`CAR_LIGHTS`만으로는 실패**(`[Pleos][SDK] setAmbientLightBrightness need Permission`). SDK 어노테이션과 달리 **`CONTROL_CAR_LIGHTS` 추가 시 성공**(`result = true`, 밝기 60·색 #FFFFFFFF). 지원 영역은 전 좌석 묶음 1개(0..100). Playground에서 Vehicle Control은 "준비 중"이라 배포 앱 사용 가능 여부는 별도 확인 필요 |
-| 3 | 창 밝기 최대(`screenBrightness = 1f`) | 실제 차/에뮬레이터 화면 밝기 변화 | ➖ 에뮬레이터로는 판단 불가(실차 확인 필요). 오류는 없음 |
-| 4 | 기어 읽기(AAOS `GEAR_SELECTION`) | Virtual Console 기어 D | ✅ P 읽힘. D로 바꾸면 **Pleos 시스템이 먼저 "주행 중에는 사용할 수 없습니다"로 앱을 가림**(DO 미선언 앱) |
-| 5 | 폰 → 차 영상 스트리밍 | 폰 에뮬레이터(가상 카메라) → 호스트 → 차량 에뮬레이터 `10.0.2.2:8080` | ✅ **29.9fps** 수신·표시(2026-11-05 재확인: 29.7~29.8fps, 스트리밍 중 다이얼 색·밝기 조절 동시 동작). 지연 수치는 시계 오차로 무의미 → 실제 폰으로 육안 측정 필요 |
-| 6 | 다이얼(회전) 입력 | `adb shell cmd car_service inject-rotary -c true` / `inject-key 23` | ✅ **회전 → 밝기·색 조절 동작.** 조건 3가지(car-ui-lib 2.6.0): ① 창에 `FocusParkingView`(FocusArea 밖, 맨 앞) ② 대상 뷰가 `FocusArea` 안 ③ 대상 뷰에 `setSupportsRotateDirectly` + **직접 조작 모드**. 직접 조작 모드는 다이얼을 눌러야 켜지지만, 포커스를 받을 때 `enableDirectManipulationMode(view, true)`를 호출하면 누르지 않아도 된다. 회전은 `ACTION_SCROLL_FORWARD/BACKWARD`로 들어온다. 터치 후 첫 회전 1칸은 포커스 복구에 쓰인다(AAOS 기본 동작). 주소 입력란을 터치한 뒤에는 2칸(입력란 복구 → 다이얼 뷰로 이동)이 쓰인다. 누름·nudge 키는 RotaryService가 가져가서 앱에 오지 않으므로, 밝기↔색 전환은 화면 터치로 처리(실차 CCP에서 재확인 필요) |
-
-### 부수 발견
-
-- **차량 속도 주입 가능.** Virtual Console 화면에는 속도 카드가 없지만, 내부 API `PUT /vehicle/controls?speed_kph=60`이 동작한다(Driving view에 60 km/h 표시). 브라우저 세션 하트비트(`POST /browser/session?client=...`, 1초 간격)가 없으면 `emulator_inactive`(503). 스크립트 예: 기어 `PUT /vehicle/gear?gear=Drive`.
-- `adb shell cmd car_service inject-vhal-event`는 user 빌드라 불가 → 차량 값 조작은 Virtual Console API로.
-- 에뮬레이터 설정: **`hw.audioInput=no` 필수**(켜 두면 부팅 직후 QEMU main loop가 멈춤, macOS 마이크 권한 문제로 추정). 에뮬레이터 출력을 `head`로 자르면 파이프가 닫혀 멈춘다. 비정상 종료 뒤에는 오류 보고 동의 창이 떠서 다음 부팅이 막히므로 `/tmp/android-$USER/emu-crash-*.db`를 지운다.
-- Pleos 화면: 앱은 오른쪽 앱 영역(약 1680×1210px)에 뜬다. 왼쪽 Driving view는 가릴 수 없으므로 "화면 가장자리 조명"은 앱 영역 테두리까지만 가능.
+```sh
+export JAVA_HOME=$(/usr/libexec/java_home -v 17)   # Temurin 17
+./gradlew assembleDebug testDebugUnitTest            # shared 25 · car 7 단위 테스트
+./gradlew assembleRelease                            # keystore.properties 가 없으면 debug 키로 서명(keystore.properties.example)
+```
 
 ## 실행
 
+차량 에뮬레이터(Pleos Connect 2.1.0, 콜드 부팅, 기어 P)와 폰(에뮬레이터 또는 실기기)을 준비한다.
+
 ```sh
-# 빌드 (JDK 17)
-export JAVA_HOME=$(/usr/libexec/java_home -v 17)
-./gradlew :car:assembleDebug :phone:assembleDebug
-
-# 차량 앱 설치 (Pleos 에뮬레이터)
-adb -s <pleos-emulator> install -r car/build/outputs/apk/debug/car-debug.apk
-
-# 폰 앱 설치 (실제 폰 또는 일반 폰 에뮬레이터)
+adb -s <pleos> install -r car/build/outputs/apk/debug/car-debug.apk
 adb -s <phone> install -r phone/build/outputs/apk/debug/phone-debug.apk
 ```
 
-**실제 폰**: 폰과 Mac을 같은 Wi-Fi에 연결 → 폰 앱 화면의 `IP:8080`을 차량 앱에 입력.
-
-**폰 에뮬레이터로 대체**: 폰 에뮬레이터는 Mac 웹캠을 카메라로 쓴다. 두 에뮬레이터는 서로 직접 못 붙으므로 호스트를 거친다.
+**폰 → 차 경로(데모).** 차량 앱은 `10.0.2.2:8080`(에뮬레이터에서 본 Mac)으로 접속한다. 폰이 실기기면 `adb -s <phone> forward tcp:8080 tcp:8080`, 폰 에뮬레이터면 콘솔로 `redir add tcp:8080:8080`. adb 서버가 자주 죽는 Mac 에서는 콘솔 redir 이 안정적이다.
 
 ```sh
-adb -s <phone-emulator> forward tcp:8080 tcp:8080   # 호스트 8080 → 폰 에뮬레이터 8080
-# 차량 앱 주소 입력: 10.0.2.2:8080  (에뮬레이터에서 본 호스트 주소)
+printf 'auth %s\nredir add tcp:8080:8080\nquit\n' "$(cat ~/.emulator_console_auth_token)" | nc -w 3 127.0.0.1 5554
 ```
 
-## 단순화한 부분
+폰 앱에서 **화면 공유 시작** → 동의 → 홈으로 나가 카메라·라이브 앱을 연다. 차 화면 가운데에 폰 화면이 뜨고, 다이얼·패널·폰 어디서 바꿔도 조명 값이 같이 바뀐다.
 
-- 영상은 MJPEG(표준 라이브러리만 사용). H.264 대비 대역폭이 커서 640×480·15fps 수준이 한계 → 화질이 문제면 RTSP/WebRTC로 교체.
-- 지연은 폰·차 시계 차이를 보정하지 않은 근사값만 표시.
-- 다이얼은 Compose가 아니라 투명 View(`DialTarget`)로 받는다. RotaryService는 접근성 노드에 동작을 수행하는데, Compose 가상 노드로는 이 경로를 검증하지 않았다.
-- 다이얼 입력 확인용 로그: `adb logcat -s DialTarget`. RotaryService 상태: `adb shell dumpsys activity service com.android.car.rotary | grep DirectManipulation`.
+**상대 앱 없이.**
+
+```sh
+python3 tools/mock_phone.py --jpeg sample.jpg --sweep     # 차량 앱만: 영상 반복 + 색온도 스윕, 차의 LIGHT 출력. stdin: k 3500 | l 0.6 | p cyan | q
+python3 tools/mock_car.py --save last.jpg                 # 폰 앱만: FRAME fps·크기, LIGHT 출력. 폰 에뮬레이터면 먼저 redir
+```
+
+**기어.** Virtual Console(`adb forward tcp:8088 tcp:8088` → http://127.0.0.1:8088) 또는 `PUT /vehicle/gear?gear=Drive`. P·N 이면 사용, D·R 이면 경고 후 종료.
+
+## 확인 상태 (2026-11-09)
+
+| 항목 | 방법 | 상태 |
+|---|---|---|
+| 메시지 코덱·세션·색 변환·조명 값 JSON | 단위 테스트 25개 | ✅ |
+| 다이얼 단계·클램프, 씬 적용·일치 | 단위 테스트 7개 | ✅ |
+| 차량 앱: 기어 게이트, 앰비언트 원래 값 읽기·설정·복원 | 2026-11-08 에뮬레이터(같은 설계, 이전 코드) | ✅ 확인됐으나 지금 코드로는 재확인 필요 |
+| 차량 앱: 실내등·독서등 조회·설정·복원, 패널, 씬, 풀 라이트 | 에뮬레이터 + Virtual Console | ⬜ 미확인 |
+| 폰 앱: MediaProjection 캡처·송출, 회전, 알림 버튼, 플로팅 컨트롤 | 폰 에뮬레이터/실기기 | ⬜ 미확인 |
+| 폰↔차 동기화(양방향), 재접속 | 두 에뮬레이터 | ⬜ 미확인 |
+| USB 테더링 게이트웨이, NSD 탐색·광고 | 실기기·실차 | ⬜ 미확인(에뮬레이터로 불가) |
+| USB 액세서리(AOA) | 실차 | ⬜ 미확인. 서드파티 앱의 USB 호스트 사용 가능 여부 자체가 Pleos 확인 대상 |
+| 차량 측 CPU(정차 기준 ≤25%) | `adb shell top` | ⬜ 미확인 |
+
+## 알려진 제한·단순화
+
+- 영상은 JPEG 프레임(15fps, 긴 변 1200px). 차량 CPU 가 높으면 H.264(`MediaCodec`)로 교체한다.
+- `FLAG_SECURE` 를 건 앱(DRM·금융)은 검게 캡처된다. 카메라·라이브 UI 는 보통 해당 없음(실기기 확인 필요).
+- Android 14+ 는 화면 공유 동의를 세션마다 받고 토큰이 1회용이다. 끊기면 "화면 공유 시작"을 다시 누른다.
+- 실내등·독서등은 스위치 변경 리스너가 없어 상태(켜짐/꺼짐) 리스너로 근사한다. 바깥에서 AUTOMATIC 으로 바꾸면 패널에는 ON 으로 보일 수 있다.
+- 앰비언트 set 은 `CONTROL_CAR_LIGHTS` 권한이 필요하다(에뮬레이터 2.1.0 확인). Playground 의 Vehicle Control 은 "준비 중".
+- 다이얼 누름·nudge 는 RotaryService 가 가져가서 앱에 오지 않는다. 밝기↔색온도 전환은 패널 칩으로. 터치 후 첫 회전 1칸은 포커스 복구에 쓰인다.
+- 로그: `adb logcat -s StudioVehicle StudioLink PhoneLink PhoneAddress UsbHostLink DialTarget` (차), `adb logcat -s MirrorService StudioLink UsbAccessoryLink` (폰).

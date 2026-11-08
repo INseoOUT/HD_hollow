@@ -3,3 +3,7 @@ build/
 local.properties
 *.iml
 .idea/
+# 릴리스 서명 키(저장소 밖)
+keystore.properties
+*.jks
+*.keystore
