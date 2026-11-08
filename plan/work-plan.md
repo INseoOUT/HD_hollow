@@ -46,9 +46,9 @@ type(1B) | length(4B, big-endian) | payload
 
 | type | 이름 | 방향 | payload | 규칙 |
 |---|---|---|---|---|
-| 0x01 | `HELLO` | 양방향, 연결 직후 1회 | JSON `{"v":1,"role":"phone"\|"car","screen":[w,h]}` | `v`가 다르면 끊는다 |
+| 0x01 | `HELLO` | 양방향, 연결 직후 1회 | JSON `{"v":1,"role":"phone"\|"car","screen":[w,h],"now":epoch_ms}` | `v`가 다르면 끊는다. `now`는 보낸 쪽 시계(LIGHT `ts` 보정용, 없으면 보정 없음). HELLO 를 받은 쪽은 자기 LIGHT 를 한 번 보낸다 |
 | 0x02 | `FRAME` | 폰 → 차 | JPEG 바이트 | 긴 변 ≤ 1200px, ≤ 15fps. 폰은 **최신 프레임만** 보낸다(쓰는 중이면 건너뜀). 상한 1MB |
-| 0x03 | `LIGHT` | 양방향 | JSON `LightingParams` | 아래 표. 받은 것은 적용. `src`가 자기 것이면 무시. 폰은 차에서 받은 값을 자기 UI에만 반영하고 되돌려 보내지 않는다 |
+| 0x03 | `LIGHT` | 양방향 | JSON `LightingParams` | 아래 표. 받은 값이 내 값보다 최신(`supersedes`)일 때만 적용. `src`가 자기 것이면 무시. 받은 값은 자기 UI에만 반영하고 되돌려 보내지 않는다 |
 | 0x04 | `PING` | 양방향 | 없음 | 5초마다. 15초 무수신이면 끊고, 차가 2초 뒤 재접속 |
 
 `LightingParams`:
@@ -63,7 +63,7 @@ type(1B) | length(4B, big-endian) | payload
 | `level` | Float 0.0~1.0 | 밝기. 다이얼 1칸 0.05 |
 | `preset` | null \| `"cyan"` \| `"blue"` \| `"purple"` | 무드 색. null이면 색온도 모드 |
 | `src` | `"phone"` \| `"car"` | 보낸 쪽 |
-| `ts` | epoch ms | 로그용. 기기 간 시계 차이가 있어 **비교에 쓰지 않는다** |
+| `ts` | epoch ms | 사용자가 이 값을 **마지막으로 바꾼 시각**(0 = 한 번도 안 바꾼 기본값). 재접속·충돌 때 ts 가 큰 쪽이 기준, 같으면 폰, 기본값은 항상 진다(`LightingParams.supersedes`). 기기 간 시계 차이는 HELLO 의 `now` 로 받는 쪽 시계에 맞춰 보정한다(11/09 결정) |
 
 동시 조작 충돌은 해결하지 않는다(마지막에 받은 값 적용, 양쪽 150ms 디바운스).
 
@@ -93,7 +93,7 @@ T0 머지 뒤 `settings.gradle.kts`·`libs.versions.toml`은 동결한다(충돌
 | 4 | P4 | `StudioLink` 서버 | `MjpegServer.kt` → `StudioLink.kt` | TCP 8080 accept → `TcpTransport` → `MessageCodec`. HELLO 교환, FRAME 최신만 송신, LIGHT 송수신, PING 5초. `StateFlow<LightingParams>`를 서비스가 소유. 액티비티가 죽어도 송출 유지 | mock_car에서 HELLO·FRAME·PING 수신, stdin LIGHT → 폰 상태 갱신 | T2 |
 | 5 | P5 | 액티비티 개편 | `MainActivity.kt` | 카메라 코드·Wi-Fi IP 표시·프레임 카운트 삭제. "화면 공유 시작" → `createScreenCaptureIntent()`를 `StartActivityForResult`로, OK면 `startForegroundService`. "중지". 상태 3줄(송출, 차량 연결, 안내 "연결 → 화면 공유 시작 → 쓰던 카메라·라이브 앱을 여세요"). Android 14 동의 화면의 "앱 하나만 공유 / 전체 화면" 안내 한 줄 | 시작·중지 3회 반복 정상 | 화면 |
 | 6 | P6 | 종료 처리 | `MirrorService.kt` | `MediaProjection.Callback.onStop`(상태바에서 중지) → `stopSelf`. `onDestroy`: `virtualDisplay.release()`, `reader.close()`, `projection.stop()`, 서버 종료. 토큰은 1회용이라 재시작 시 동의 다시 | 상태바 중지 후 리소스 정리, 재시작 가능 | mock_car 연결 끊김 확인 |
-| 7 | P7 | 회전 대응 | `MirrorService.kt` | `DisplayManager.DisplayListener.onDisplayChanged(DEFAULT_DISPLAY)`에서 크기 변화 시 `virtualDisplay.resize` + 새 `ImageReader`로 surface 교체 | 회전 시 FRAME 크기가 바뀜 | T2 출력 |
+| 7 | P7 | 회전 대응 | `MirrorService.kt`, `MirrorFit.kt` | 가상 디스플레이는 정사각형(한 변 1200) 하나를 한 번만 만든다. AUTO_MIRROR 가 화면을 비율대로 가운데 맞추므로 `onDisplayChanged` 때(와 300ms 뒤) 내용 영역만 다시 계산해 그 부분을 잘라 보낸다. `resize`+surface 교체 경로는 회전 직후 작게 보이는 문제가 있어 버림(11/09) | 회전 시 FRAME 크기가 540×1200 ↔ 1200×540 | T2 출력 |
 | **I1** | | 통합 1 (11/9 저녁) | | **폰 기본 카메라 앱 화면이 차 화면 가운데에 세로로 뜬다.** 홈으로 나가도 유지 | | A와 |
 | 8 | P8 | 폰 조명 UI | `MainActivity.kt` | 밝기 슬라이더, 색온도 슬라이더(100K 단위), 무드 색 칩 3개. 값은 서비스 `StateFlow`; 차에서 온 LIGHT도 여기 반영. 미리보기 색은 `:shared` 변환 | 슬라이더 조작 → LIGHT 송신(mock_car 출력), mock_car LIGHT → UI 갱신 | T2 |
 | 9 | P9 | 알림 액션 | `MirrorService.kt` | 버튼 3개: 따뜻하게(-300K) · 차갑게(+300K) · 중지. 알림 액션은 최대 3개라 밝기는 차 다이얼·폰 화면에서 | 카메라 앱이 앞에 있을 때 버튼 → LIGHT 송신 | T2 |
@@ -119,7 +119,7 @@ B가 1차에서 손대지 않는 것: `poc/car/*`, `:shared`(수정 필요하면
 | 5 | C2 | 문구 | `MainActivity.kt` | 대기 문구 "폰 화면 연결 대기 중\n폰을 연결하고 Car Studio에서 화면 공유를 시작해 주세요" | | |
 | **I1** | | 통합 1 (11/9 저녁) | | 새 폰 앱 영상이 뜬다 | | B와 |
 | 6 | C3 | 조명 상태 모델 | `StudioVehicle.kt` | `CarState`에 `ambient: Map<SeatArea, AmbientArea(brightness, bounds, color, switch)>`, `cabin: LightSwitch?`, `reading: Map<SeatArea, LightSwitch?>`. 좌석 목록은 enum이 아니라 **capability 콜백의 Map 키**(`SeatArea`는 `Area`를 상속한 클래스). 스위치 값 `LightSwitch.OFF/ON/AUTOMATIC/DAYTIME_RUNNING` 중 capability가 돌려준 것만 노출 | 모델 컴파일, 로그에 읽힌 값 | — |
-| 7 | C4 | 읽기·복원 일반화 | `StudioVehicle.kt` | 시작 시 원래 값을 읽어 두고 종료 시 되돌리는 **복원 동작 목록** `restore: List<(done) -> Unit>`. 읽기 성공 항목마다 되돌리는 클로저 추가, `stop()`은 전부 실행한 뒤 콜백 수를 세어 `release()`(콜백이 안 오면 1초 뒤). 먼저 해제하면 되돌리는 set이 버려지므로 순서가 중요. 읽기 `getAmbientLightBrightness`, `getAmbientLightBrightnessColor`, `getAmbientLightSwitch`, `getCabinLightSwitch`, `getReadingLightSwitch(area)`. capability `checkAmbientLightBrightnessCapabilities`, `checkAmbientLightBrightnessColorCapabilities`, `checkAmbientLightSwitchCapabilities`, `checkCabinLightSwitchCapabilities`, `checkReadingLightSwitchCapabilities`. `syncAmbient`는 원래 값을 읽은 영역만 바꾸고, `stopped` 가드로 복원 뒤 늦게 도착한 set을 막는다 | 기어 D → 앰비언트·실내등·독서등 전부 원래 값 | Virtual Console |
+| 7 | C4 | 읽기·복원 일반화 | `StudioVehicle.kt` | 시작 시 원래 값을 읽어 두고 종료 시 되돌리는 **복원 동작 목록** `restore: List<(done) -> Unit>`. 읽기 성공 항목마다 되돌리는 클로저 추가, `stop()`은 전부 실행한 뒤 콜백 수를 세어 `release()`(콜백이 안 오면 1초 뒤). 먼저 해제하면 되돌리는 set이 버려지므로 순서가 중요. 읽기 `getAmbientLightBrightness`, `getAmbientLightBrightnessColor`, `getAmbientLightSwitch`, `getCabinLightSwitch`, `getReadingLightSwitch(area)`. capability `checkAmbientLightBrightnessCapabilities`, `checkAmbientLightBrightnessColorCapabilities`, `checkAmbientLightSwitchCapabilities`, `checkCabinLightSwitchCapabilities`, `checkReadingLightSwitchCapabilities`. `syncAmbient`는 원래 값을 읽은 영역만 바꾸고, `stopped` 가드로 복원 뒤 늦게 도착한 set을 막는다. **비정상 종료 대비(11/09)**: 읽은 원래 값을 `OriginalStore`(SharedPreferences)에 저장하고 처음 바꿀 때 dirty, 복원을 마치면 지운다. 다음 실행이 dirty 를 보면 저장된 값을 원래 값으로 채택하고 다른 값은 즉시 되돌린다. 기어 D 를 보면 `restoreNow()`로 먼저 되돌리고 3초 뒤 종료한다. 복원 순서 앰비언트 → 실내등 → 독서등 | 기어 D → 즉시 앰비언트·실내등·독서등 원래 값. 강제 종료 뒤 재실행도 원래 값 복원 | Virtual Console |
 | 8 | C5 | 설정 API | `StudioVehicle.kt` | `setAmbientLightSwitch`, `setCabinLightSwitch`, `setReadingLightSwitch(area, …)`. `syncAmbient`는 "연동" 토글이 켜진 동안만. `stopped` 가드 유지 | 패널 조작 → Virtual Console 반영 | Virtual Console(`GET /vehicle/state`로 항목 이름 먼저 확인) |
 | 9 | C6 | 외부 변경 추적 | `StudioVehicle.kt` | `registerCabinLightState`, `registerReadingLightState(area)`, `registerAmbientLightBrightnessListener/ColorListener(area)`. `stop()`에서 전부 unregister | Virtual Console에서 바꾸면 패널이 따라옴 | Virtual Console |
 | 10 | C7 | 레이아웃 | `MainActivity.kt` | 링 안쪽을 `Row`로: 왼쪽 **모니터**(세로 영상 `ContentScale.Fit`, 남는 폭 검정), 오른쪽 **조명 패널**(약 380dp). 섹션 ① 링라이트(밝기·색온도 슬라이더, 무드 색 칩 3, 다이얼 대상) ② 앰비언트(연동 토글, 켜짐, 현재 값) ③ 실내등 ④ 독서등(좌석별 칩). capability 없는 섹션은 숨김 | 앱 영역(약 1680×1210)에 들어감, 좌우 링 폭 충분 | 에뮬레이터 |
