@@ -24,6 +24,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":shared")) // 폰↔차 계약: 메시지 코덱, 조명 값, 색 변환 (plan/work-plan.md 2절)
     implementation(libs.camerax.camera2)
     implementation(libs.camerax.lifecycle)
     implementation(libs.androidx.core.ktx)
