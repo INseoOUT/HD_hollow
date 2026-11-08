@@ -7,6 +7,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <!-- 알림의 '따뜻하게·차갑게·중지' 버튼이 보이도록(API 33+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- 플로팅 컨트롤(다른 앱 위에 작은 조절판). 사용자가 설정에서 허용해야 뜬다 -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
     <application
         android:label="Car Studio"

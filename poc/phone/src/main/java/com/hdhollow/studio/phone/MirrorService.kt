@@ -15,6 +15,8 @@ import android.hardware.display.VirtualDisplay
 import android.media.ImageReader
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
+import android.net.nsd.NsdManager
+import android.net.nsd.NsdServiceInfo
 import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
@@ -34,6 +36,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.ByteArrayOutputStream
@@ -91,8 +94,45 @@ class MirrorService : Service() {
             onLight = { p -> _lighting.value = p }, // 차에서 온 값. src=car 라 다시 보내지 않는다
         )
         scope.launch { link.clients.collect { n -> _status.update { it.copy(clients = n) } } }
-        // 폰에서 바뀐 조명 값을 차로. 차에서 온 값(src=car)은 되돌려 보내지 않는다
-        scope.launch { lighting.collect { p -> if (p.src == Protocol.ROLE_PHONE) link.sendLight(p) } }
+        // 폰에서 바뀐 조명 값을 차로. 차에서 온 값(src=car)은 되돌려 보내지 않는다. 플로팅 컨트롤 표시도 갱신
+        scope.launch {
+            lighting.collect { p ->
+                if (p.src == Protocol.ROLE_PHONE) link.sendLight(p)
+                floatingControl.render(p)
+            }
+        }
+        // 플로팅 컨트롤(P12): 송출 중이고 켜 달라고 했을 때만. 권한이 없으면 show() 가 아무것도 안 한다
+        scope.launch {
+            combine(floating, status) { f, s -> f.on && s.running }.collect { on ->
+                if (on) floatingControl.show() else floatingControl.hide()
+            }
+        }
+    }
+
+    private val floatingControl by lazy { FloatingControl(this) }
+    private var nsdListener: NsdManager.RegistrationListener? = null
+
+    /** 무선 모드(P14): 같은 Wi-Fi·핫스팟의 차가 찾을 수 있게 `_carstudio._tcp` 를 광고한다. */
+    private fun advertise() {
+        val nsd = getSystemService(NsdManager::class.java) ?: return
+        val info = NsdServiceInfo().apply {
+            serviceName = Protocol.NSD_SERVICE_NAME
+            serviceType = Protocol.NSD_SERVICE_TYPE
+            port = Protocol.PORT
+        }
+        val l = object : NsdManager.RegistrationListener {
+            override fun onServiceRegistered(i: NsdServiceInfo) = Log.d(TAG, "NSD 등록 ${i.serviceName}").let {}
+            override fun onRegistrationFailed(i: NsdServiceInfo, errorCode: Int) = Log.w(TAG, "NSD 등록 실패 $errorCode").let {}
+            override fun onServiceUnregistered(i: NsdServiceInfo) {}
+            override fun onUnregistrationFailed(i: NsdServiceInfo, errorCode: Int) {}
+        }
+        runCatching { nsd.registerService(info, NsdManager.PROTOCOL_DNS_SD, l); nsdListener = l }
+            .onFailure { Log.w(TAG, "NSD 등록 예외", it) }
+    }
+
+    private fun unadvertise() {
+        nsdListener?.let { l -> runCatching { getSystemService(NsdManager::class.java).unregisterService(l) } }
+        nsdListener = null
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -101,6 +141,9 @@ class MirrorService : Service() {
                 stopSelf()
                 return START_NOT_STICKY
             }
+            // 알림 버튼(P9). 촬영 앱이 앞에 있어도 상태바에서 색온도를 바꾼다. 알림 액션은 3개까지라 밝기는 플로팅 컨트롤·앱 화면에서
+            ACTION_WARMER -> updateLighting { it.copy(kelvin = it.kelvin - LightingParams.KELVIN_NOTIFICATION_STEP, preset = null) }
+            ACTION_COOLER -> updateLighting { it.copy(kelvin = it.kelvin + LightingParams.KELVIN_NOTIFICATION_STEP, preset = null) }
             ACTION_START -> {
                 startForegroundCompat()
                 val code = intent.getIntExtra(EXTRA_RESULT_CODE, 0)
@@ -134,6 +177,7 @@ class MirrorService : Service() {
             }
         }, handler)
         runCatching { link.start() }.onFailure { return fail("포트 ${Protocol.PORT} 를 열지 못했습니다: ${it.message}") }
+        advertise()
         getSystemService(DisplayManager::class.java).registerDisplayListener(displayListener, handler)
         handler.post { recreateCapture() }
         _status.update { it.copy(running = true, error = null) }
@@ -230,6 +274,8 @@ class MirrorService : Service() {
         reader = null
         projection?.stop()
         projection = null
+        unadvertise()
+        floatingControl.hide()
         link.stop()
         scope.cancel()
         captureThread.quitSafely()
@@ -264,6 +310,8 @@ class MirrorService : Service() {
             .setContentText("Car Studio 가 폰 화면을 차 화면에 보여 줍니다")
             .setOngoing(true)
             .setContentIntent(open)
+            .addAction(0, "따뜻하게", servicePending(ACTION_WARMER, 2))
+            .addAction(0, "차갑게", servicePending(ACTION_COOLER, 3))
             .addAction(0, "중지", servicePending(ACTION_STOP, 1))
             .build()
     }
@@ -281,6 +329,16 @@ class MirrorService : Service() {
 
         const val ACTION_START = "com.hdhollow.studio.phone.START"
         const val ACTION_STOP = "com.hdhollow.studio.phone.STOP"
+        const val ACTION_WARMER = "com.hdhollow.studio.phone.WARMER"
+        const val ACTION_COOLER = "com.hdhollow.studio.phone.COOLER"
+
+        /** 플로팅 컨트롤 요청. nonce 는 권한을 받고 돌아왔을 때 같은 값이라도 다시 시도하게 한다. */
+        data class FloatingRequest(val on: Boolean = false, val nonce: Int = 0)
+
+        private val _floating = MutableStateFlow(FloatingRequest())
+        val floating: StateFlow<FloatingRequest> = _floating.asStateFlow()
+
+        fun setFloating(on: Boolean) = _floating.update { FloatingRequest(on, it.nonce + 1) }
         private const val EXTRA_RESULT_CODE = "result_code"
         private const val EXTRA_RESULT_DATA = "result_data"
 
