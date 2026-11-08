@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.resume
 
 /**
@@ -40,6 +42,13 @@ class StudioLinkClient(private val screenW: Int, private val screenH: Int) {
     val status: StateFlow<ShareStatus?> = _status.asStateFlow()
 
     @Volatile private var session: LinkSession? = null
+
+    // 디코드는 읽기 스레드에서 하지 않는다(느리면 소켓이 막혀 폰이 프레임을 버림). 전용 스레드가 최신 프레임만 푼다
+    private val pendingFrame = AtomicReference<ByteArray?>()
+    private val decoder = Executors.newSingleThreadExecutor { r -> Thread(r, "frame-decode").apply { isDaemon = true } }
+    private var decodeNs = 0L
+    private var decodeCount = 0
+    private var decodeWindowNs = 0L
 
     /** 연결 유지 루프. [connect] 가 null 을 주면 못 연 것이라 잠시 뒤 다시 시도한다. */
     suspend fun run(connect: suspend () -> Transport?) {
@@ -79,8 +88,8 @@ class StudioLinkClient(private val screenW: Int, private val screenH: Int) {
             }
 
             override fun onFrame(jpeg: ByteArray) {
-                val bmp = BitmapFactory.decodeByteArray(jpeg, 0, jpeg.size, decodeOptions) ?: return
-                _frames.value = bmp
+                // 앞 프레임을 아직 푸는 중이면 바꿔치기만 한다(최신 프레임만)
+                if (pendingFrame.getAndSet(jpeg) == null) decoder.execute(::drainFrames)
             }
 
             override fun onLight(params: LightingParams) {
@@ -101,6 +110,24 @@ class StudioLinkClient(private val screenW: Int, private val screenH: Int) {
         session = s
         s.start()
         cont.invokeOnCancellation { s.close("취소") }
+    }
+
+    private fun drainFrames() {
+        while (true) {
+            val jpeg = pendingFrame.getAndSet(null) ?: return
+            val t0 = System.nanoTime()
+            val bmp = BitmapFactory.decodeByteArray(jpeg, 0, jpeg.size, decodeOptions) ?: continue
+            _frames.value = bmp
+            if (_status.value?.stopped == true) _status.value = null // 다시 프레임이 오면 '끝남' 안내를 내린다
+            decodeNs += System.nanoTime() - t0
+            decodeCount++
+            if (t0 - decodeWindowNs >= 1_000_000_000L) {
+                Log.d(TAG, "디코드 ${decodeCount}장 평균 ${decodeNs / decodeCount / 1_000_000}ms (${jpeg.size / 1024}KB)")
+                decodeNs = 0
+                decodeCount = 0
+                decodeWindowNs = t0
+            }
+        }
     }
 
     companion object {

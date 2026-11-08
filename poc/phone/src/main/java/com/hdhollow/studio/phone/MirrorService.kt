@@ -79,6 +79,9 @@ class MirrorService : Service() {
     private var lastSentNs = 0L
     private var fpsCount = 0
     private var fpsWindowNs = 0L
+    private var copyNs = 0L // 1초 창의 단계별 처리 시간 합(fps 병목 측정용 로그)
+    private var compressNs = 0L
+    private var sendNs = 0L
     @Volatile private var contentVisible = true // "앱 하나만 공유"에서 그 앱이 앞에 있는가(Android 14+ 콜백)
     private var userStopped = false // 사용자가 '중지'를 눌렀다(공유 앱 종료 등과 구분)
 
@@ -256,21 +259,31 @@ class MirrorService : Service() {
                 bmp = Bitmap.createBitmap(paddedW, img.height, Bitmap.Config.ARGB_8888)
                 reusable = bmp
             }
+            val t0 = System.nanoTime()
             bmp.copyPixelsFromBuffer(plane.buffer)
             // 가운데 맞춰진 폰 화면 영역만 잘라낸다(회전 중 한두 프레임은 어긋날 수 있어 경계를 넘지 않게만 한다)
             val cw = min(c.w, bmp.width - c.x)
             val ch = min(c.h, bmp.height - c.y)
             val cropped = Bitmap.createBitmap(bmp, c.x, c.y, cw, ch)
+            val t1 = System.nanoTime()
             jpegOut.reset()
             cropped.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, jpegOut)
             cropped.recycle()
             val jpeg = jpegOut.toByteArray()
+            val t2 = System.nanoTime()
             link.publishFrame(jpeg)
+            val t3 = System.nanoTime()
             lastSentNs = now
             fpsCount++
+            copyNs += t1 - t0
+            compressNs += t2 - t1
+            sendNs += t3 - t2
             if (now - fpsWindowNs >= 1_000_000_000L) {
                 val fps = fpsCount
+                // 1초마다 단계별 평균(ms): 어디가 병목인지 실기기에서 바로 읽는다
+                Log.d(TAG, "${fps}fps 복사·크롭 ${copyNs / fps / 1_000_000}ms 압축 ${compressNs / fps / 1_000_000}ms 전송 ${sendNs / fps / 1_000_000}ms (${jpeg.size / 1024}KB)")
                 fpsCount = 0
+                copyNs = 0; compressNs = 0; sendNs = 0
                 fpsWindowNs = now
                 _status.update { it.copy(fps = fps, frame = "${cw}×${ch} · ${jpeg.size / 1024} KB") }
             }
@@ -370,7 +383,7 @@ class MirrorService : Service() {
         private const val CHANNEL = "mirror"
         private const val NOTIFICATION_ID = 1
         private const val NOTIFICATION_ENDED_ID = 2
-        private const val JPEG_QUALITY = 65
+        private const val JPEG_QUALITY = 60 // 65 → 60: 크기·압축 시간을 조금 줄인다(차 모니터에서 차이 안 보임)
         private const val FRAME_INTERVAL_NS = 1_000_000_000L / Protocol.FRAME_MAX_FPS
 
         const val ACTION_START = "com.hdhollow.studio.phone.START"
