@@ -164,6 +164,7 @@ private fun StudioScreen(
     val exiting by exitingFlow.collectAsState()
     val frame by link.frames.collectAsState()
     val connected by link.connected.collectAsState()
+    val share by link.status.collectAsState()
     val edgeColor = Color(light.argb)
 
     Box(
@@ -199,10 +200,22 @@ private fun StudioScreen(
                         val f = frame
                         if (f != null) {
                             Image(f.asImageBitmap(), "phone screen", Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                            // "앱 하나만 공유"에서 그 앱이 가려지면 프레임이 검게 온다. 이유를 띄운다
+                            if (share?.visible == false) {
+                                Box(Modifier.fillMaxSize().background(Color(0xAA000000)), contentAlignment = Alignment.Center) {
+                                    Text(
+                                        "공유한 앱이 폰에서 가려져 있습니다.\n폰에서 그 앱을 다시 앞으로 가져오세요",
+                                        color = Color.White, fontSize = 22.sp, textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
                         } else {
                             Text(
-                                if (connected) "폰 화면을 기다리는 중…\n폰에서 화면 공유를 시작해 주세요"
-                                else "폰 화면 연결 대기 중\n폰을 연결하고 Car Studio에서 화면 공유를 시작해 주세요",
+                                when {
+                                    share?.stopped == true -> "폰 화면 공유가 끝났습니다.\n폰에서 '화면 공유 시작'을 다시 눌러 주세요"
+                                    connected -> "폰 화면을 기다리는 중…\n폰에서 화면 공유를 시작해 주세요"
+                                    else -> "폰 화면 연결 대기 중\n폰을 연결하고 Car Studio에서 화면 공유를 시작해 주세요"
+                                },
                                 Modifier.align(Alignment.Center), color = Color.Gray, fontSize = 22.sp, textAlign = TextAlign.Center
                             )
                         }

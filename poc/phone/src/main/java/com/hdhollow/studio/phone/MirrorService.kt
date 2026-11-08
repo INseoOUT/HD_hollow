@@ -30,6 +30,7 @@ import androidx.core.app.NotificationCompat
 import com.hdhollow.studio.shared.Hello
 import com.hdhollow.studio.shared.LightingParams
 import com.hdhollow.studio.shared.Protocol
+import com.hdhollow.studio.shared.ShareStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -78,6 +79,8 @@ class MirrorService : Service() {
     private var lastSentNs = 0L
     private var fpsCount = 0
     private var fpsWindowNs = 0L
+    @Volatile private var contentVisible = true // "앱 하나만 공유"에서 그 앱이 앞에 있는가(Android 14+ 콜백)
+    private var userStopped = false // 사용자가 '중지'를 눌렀다(공유 앱 종료 등과 구분)
 
     private val displayListener = object : DisplayManager.DisplayListener {
         override fun onDisplayAdded(displayId: Int) {}
@@ -99,6 +102,7 @@ class MirrorService : Service() {
             hello = { val m = realMetrics(); Hello(Protocol.ROLE_PHONE, m.widthPixels, m.heightPixels, now = System.currentTimeMillis()) },
             onLight = { p -> acceptFromCar(p) }, // 차에서 온 값. 더 최신일 때만 받고, src=car 라 다시 보내지 않는다
             current = { _lighting.value }, // 차가 붙으면 내 값을 보내 어느 쪽이 최신인지 가리게 한다
+            status = { ShareStatus(visible = contentVisible) },
         )
         scope.launch { link.clients.collect { n -> _status.update { it.copy(clients = n) } } }
         // 폰에서 바뀐 조명 값을 차로. 차에서 온 값(src=car)은 되돌려 보내지 않는다. 플로팅 컨트롤 표시도 갱신
@@ -145,6 +149,8 @@ class MirrorService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_STOP -> {
+                userStopped = true
+                link.sendStatus(ShareStatus(stopped = true, reason = "user")) // 세션이 닫히기 전에 나간다(LinkSession.close 가 잠깐 기다림)
                 stopSelf()
                 return START_NOT_STICKY
             }
@@ -177,12 +183,28 @@ class MirrorService : Service() {
             return fail("화면 캡처 권한 오류: ${e.message}")
         } ?: return fail("화면 캡처를 시작하지 못했습니다")
         projection = p
-        // API 34+: createVirtualDisplay 전에 콜백을 등록해야 한다. 사용자가 상태바에서 중지하면 onStop
+        // API 34+: createVirtualDisplay 전에 콜백을 등록해야 한다. 사용자가 상태바에서 중지하거나 공유한 앱이 닫히면 onStop
         p.registerCallback(object : MediaProjection.Callback() {
             override fun onStop() {
-                Log.d(TAG, "MediaProjection 중지됨")
+                Log.d(TAG, "MediaProjection 중지됨 (사용자 중지=$userStopped)")
                 projection = null
+                if (!userStopped) {
+                    // 공유 앱 종료·시스템 중지: 차에 '공유 끝남'을 알리고, 폰에는 탭 한 번으로 다시 시작하는 알림을 띄운다
+                    link.sendStatus(ShareStatus(stopped = true, reason = "projection"))
+                    notifyEnded()
+                }
                 stopSelf()
+            }
+
+            // Android 14+ "앱 하나만 공유": 그 앱이 가려지면 false 가 오고 프레임은 검게 나온다. 차가 안내 문구를 띄우게 알린다
+            override fun onCapturedContentVisibilityChanged(isVisible: Boolean) {
+                Log.d(TAG, "공유 내용 보임=$isVisible")
+                contentVisible = isVisible
+                link.sendStatus(ShareStatus(visible = isVisible))
+            }
+
+            override fun onCapturedContentResize(width: Int, height: Int) {
+                Log.d(TAG, "공유 내용 크기 ${width}x$height")
             }
         }, handler)
         runCatching { link.start() }.onFailure { return fail("포트 ${Protocol.PORT} 를 열지 못했습니다: ${it.message}") }
@@ -326,10 +348,28 @@ class MirrorService : Service() {
         this, requestCode, Intent(this, MirrorService::class.java).setAction(action), PendingIntent.FLAG_IMMUTABLE
     )
 
+    /** 공유가 사용자 뜻과 상관없이 끝났을 때(공유 앱 종료 등). 탭하면 앱이 바로 동의 화면을 연다. */
+    private fun notifyEnded() {
+        val open = PendingIntent.getActivity(
+            this, 1,
+            Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP).putExtra(EXTRA_RESTART, true),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        val n = NotificationCompat.Builder(this, CHANNEL)
+            .setSmallIcon(android.R.drawable.ic_menu_camera)
+            .setContentTitle("화면 공유가 끝났어요")
+            .setContentText("공유하던 앱이 닫혔거나 시스템이 공유를 멈췄습니다. 탭하면 다시 시작합니다")
+            .setContentIntent(open)
+            .setAutoCancel(true)
+            .build()
+        getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ENDED_ID, n)
+    }
+
     companion object {
         private const val TAG = "MirrorService"
         private const val CHANNEL = "mirror"
         private const val NOTIFICATION_ID = 1
+        private const val NOTIFICATION_ENDED_ID = 2
         private const val JPEG_QUALITY = 65
         private const val FRAME_INTERVAL_NS = 1_000_000_000L / Protocol.FRAME_MAX_FPS
 
@@ -338,6 +378,7 @@ class MirrorService : Service() {
         const val ACTION_WARMER = "com.hdhollow.studio.phone.WARMER"
         const val ACTION_COOLER = "com.hdhollow.studio.phone.COOLER"
         const val ACTION_ATTACH_USB = "com.hdhollow.studio.phone.ATTACH_USB"
+        const val EXTRA_RESTART = "restart" // '공유가 끝났어요' 알림 → 액티비티가 바로 동의 화면을 연다
 
         /** 플로팅 컨트롤 요청. nonce 는 권한을 받고 돌아왔을 때 같은 값이라도 다시 시도하게 한다. */
         data class FloatingRequest(val on: Boolean = false, val nonce: Int = 0)

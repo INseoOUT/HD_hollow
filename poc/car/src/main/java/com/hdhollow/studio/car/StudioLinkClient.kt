@@ -7,6 +7,7 @@ import com.hdhollow.studio.shared.Hello
 import com.hdhollow.studio.shared.LightingParams
 import com.hdhollow.studio.shared.LinkSession
 import com.hdhollow.studio.shared.Protocol
+import com.hdhollow.studio.shared.ShareStatus
 import com.hdhollow.studio.shared.Transport
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -33,6 +34,10 @@ class StudioLinkClient(private val screenW: Int, private val screenH: Int) {
 
     private val _incomingLight = MutableSharedFlow<LightingParams>(extraBufferCapacity = 16)
     val incomingLight: SharedFlow<LightingParams> = _incomingLight.asSharedFlow()
+
+    private val _status = MutableStateFlow<ShareStatus?>(null)
+    /** 폰이 알린 공유 상태(공유 앱이 가려짐·공유 끝남). 새 세션이 붙거나 '끝남' 뒤 프레임이 오면 지운다. */
+    val status: StateFlow<ShareStatus?> = _status.asStateFlow()
 
     @Volatile private var session: LinkSession? = null
 
@@ -69,6 +74,7 @@ class StudioLinkClient(private val screenW: Int, private val screenH: Int) {
         s = LinkSession(transport, hello, object : LinkSession.Listener {
             override fun onHello(peer: Hello) {
                 Log.d(TAG, "폰 연결됨 ${peer.screenW}x${peer.screenH} (${transport.name})")
+                _status.value = null
                 _connected.value = true
             }
 
@@ -79,6 +85,11 @@ class StudioLinkClient(private val screenW: Int, private val screenH: Int) {
 
             override fun onLight(params: LightingParams) {
                 _incomingLight.tryEmit(params)
+            }
+
+            override fun onStatus(status: ShareStatus) {
+                Log.d(TAG, "공유 상태 $status")
+                _status.value = status
             }
 
             override fun onClosed(reason: String) {

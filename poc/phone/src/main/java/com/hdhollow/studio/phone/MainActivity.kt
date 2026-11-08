@@ -65,6 +65,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         MirrorService.init(this) // 마지막 조명 값 불러오기
+        handleRestart(intent)
         setContent {
             MaterialTheme {
                 Surface(Modifier.fillMaxSize()) {
@@ -94,6 +95,14 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handleUsbAccessory(intent)
+        handleRestart(intent)
+    }
+
+    /** '화면 공유가 끝났어요' 알림을 탭해 왔으면 바로 동의 화면으로(공유 앱이 닫혀 공유가 끝난 경우의 재시작 경로) */
+    private fun handleRestart(intent: Intent?) {
+        if (intent?.getBooleanExtra(MirrorService.EXTRA_RESTART, false) != true) return
+        intent.removeExtra(MirrorService.EXTRA_RESTART)
+        if (!MirrorService.status.value.running) startSharing()
     }
 
     /** 차가 AOA 로 폰을 액세서리 모드로 바꾸면 시스템이 이 인텐트로 앱을 띄운다. 송출 중이면 서비스가 그 경로를 연다(P13) */

@@ -5,6 +5,7 @@ import com.hdhollow.studio.shared.Hello
 import com.hdhollow.studio.shared.LightingParams
 import com.hdhollow.studio.shared.LinkSession
 import com.hdhollow.studio.shared.Protocol
+import com.hdhollow.studio.shared.ShareStatus
 import com.hdhollow.studio.shared.TcpTransport
 import com.hdhollow.studio.shared.Transport
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +24,7 @@ class StudioLink(
     private val hello: () -> Hello,
     private val onLight: (LightingParams) -> Unit,
     private val current: () -> LightingParams, // 차가 붙으면 지금 값을 보내 어느 쪽이 최신인지 가리게 한다
+    private val status: () -> ShareStatus, // 차가 붙으면 지금 공유 상태(앱 가려짐 여부)도 보낸다
 ) {
     private val sessions = CopyOnWriteArrayList<LinkSession>()
     private val _clients = MutableStateFlow(0)
@@ -50,6 +52,7 @@ class StudioLink(
             override fun onHello(peer: Hello) {
                 Log.d(TAG, "차 연결됨 ${peer.screenW}x${peer.screenH} (${transport.name})")
                 session.sendLight(current().copy(src = Protocol.ROLE_PHONE)) // ts 는 바꾼 시각 그대로. 차가 더 최신이면 무시한다
+                session.sendStatus(status())
             }
 
             override fun onLight(params: LightingParams) = onLight.invoke(params)
@@ -82,6 +85,11 @@ class StudioLink(
 
     fun sendLight(params: LightingParams) {
         sessions.forEach { it.sendLight(params.copy(src = Protocol.ROLE_PHONE)) }
+    }
+
+    /** 공유 상태(앱 가려짐·공유 끝남)를 모든 차에. */
+    fun sendStatus(status: ShareStatus) {
+        sessions.forEach { it.sendStatus(status) }
     }
 
     companion object {
