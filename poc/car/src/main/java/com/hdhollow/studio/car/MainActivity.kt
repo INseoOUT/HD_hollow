@@ -5,21 +5,14 @@ import android.widget.FrameLayout
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
@@ -39,7 +32,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.lifecycleScope
 import com.android.car.ui.FocusArea
 import com.android.car.ui.FocusParkingView
-import com.hdhollow.studio.shared.ColorTemp
 import com.hdhollow.studio.shared.LightingParams
 import com.hdhollow.studio.shared.Protocol
 import kotlinx.coroutines.FlowPreview
@@ -53,7 +45,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
 
 /** 가장자리 조명 안쪽 창의 모서리 반지름. 조명이 모서리에서 부드럽게 감싸도록. */
 private val INNER_RADIUS = 40.dp
@@ -103,13 +94,14 @@ class MainActivity : ComponentActivity() {
         // 내 조명 값 → 폰(폰에서 온 값은 되돌려 보내지 않음) + 앰비언트 연동. 150ms 디바운스.
         // 원래 값을 읽은 영역이 늘거나 폰이 다시 붙으면 현재 값을 다시 적용·전송한다
         lifecycleScope.launch {
-            val mine = snapshotFlow { light.params(Protocol.ROLE_CAR) }.debounce(150)
+            val mine = snapshotFlow { light.params(Protocol.ROLE_CAR) to light.ambientLinked }.debounce(150)
             val areas = studio.state.map { it.lighting.ambient.size }.distinctUntilChanged()
-            combine(mine, areas, active, link.connected) { p, _, ok, _ -> p to ok }.collect { (p, ok) ->
-                if (!ok) return@collect
-                if (lastIncoming?.sameLight(p) != true) link.sendLight(p)
-                studio.syncAmbient(p.level, LightLogic.argb(p))
-            }
+            combine(mine, areas, active, link.connected) { (p, linked), _, ok, _ -> Triple(p, linked, ok) }
+                .collect { (p, linked, ok) ->
+                    if (!ok) return@collect
+                    if (lastIncoming?.sameLight(p) != true) link.sendLight(p)
+                    if (linked) studio.syncAmbient(p.level, LightLogic.argb(p))
+                }
         }
 
         val dial = DialTarget(this, onRotate = light::rotate, onPress = { light.dialColor = !light.dialColor })
@@ -166,18 +158,23 @@ private fun StudioScreen(studio: StudioVehicle, light: StudioLight, link: Studio
                 .background(Color.Black)
                 .padding(12.dp)
         ) {
-            // 가운데: 폰 화면 모니터
-            val f = frame
-            if (f != null) {
-                Image(f.asImageBitmap(), "phone screen", Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
-            } else {
-                Text(
-                    if (connected) "폰 화면을 기다리는 중…\n폰에서 화면 공유를 시작해 주세요"
-                    else "폰 화면 연결 대기 중\n폰을 연결하고 Car Studio에서 화면 공유를 시작해 주세요",
-                    Modifier.align(Alignment.Center), color = Color.Gray, fontSize = 22.sp, textAlign = TextAlign.Center
-                )
+            Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                // 왼쪽: 폰 화면 모니터(세로 영상은 Fit, 남는 폭은 검정)
+                Box(Modifier.weight(1f).fillMaxHeight()) {
+                    val f = frame
+                    if (f != null) {
+                        Image(f.asImageBitmap(), "phone screen", Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                    } else {
+                        Text(
+                            if (connected) "폰 화면을 기다리는 중…\n폰에서 화면 공유를 시작해 주세요"
+                            else "폰 화면 연결 대기 중\n폰을 연결하고 Car Studio에서 화면 공유를 시작해 주세요",
+                            Modifier.align(Alignment.Center), color = Color.Gray, fontSize = 22.sp, textAlign = TextAlign.Center
+                        )
+                    }
+                }
+                // 오른쪽: 조명 패널
+                LightPanel(light, car.lighting, studio)
             }
-            LightBar(light, Modifier.align(Alignment.BottomCenter))
         }
 
         val notice = when {
@@ -194,37 +191,3 @@ private fun StudioScreen(studio: StudioVehicle, light: StudioLight, link: Studio
     }
 }
 
-/** 하단 조절 바: 밝기·색온도 슬라이더, 무드 색 3개, 다이얼 대상 전환. */
-@Composable
-private fun LightBar(light: StudioLight, modifier: Modifier) {
-    Row(
-        modifier.fillMaxWidth().background(Color(0xCC000000)).padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Text(
-            "밝기 ${(light.level * 100).roundToInt()}% · ${light.colorLabel}\n다이얼: ${if (light.dialColor) "색온도" else "밝기"} ⇄",
-            color = Color.White,
-            // 에뮬레이터에선 다이얼 누름·nudge가 앱에 안 와서(RotaryService가 소비) 터치로 전환
-            modifier = Modifier.width(160.dp).clickable { light.dialColor = !light.dialColor }
-        )
-        Column(Modifier.width(360.dp)) {
-            Slider(light.level, { light.level = it }, Modifier.fillMaxWidth())
-            Slider(
-                light.kelvin.toFloat(),
-                { light.chooseKelvin((it / LightingParams.KELVIN_SLIDER_STEP).roundToInt() * LightingParams.KELVIN_SLIDER_STEP) },
-                Modifier.fillMaxWidth(),
-                valueRange = LightingParams.KELVIN_MIN.toFloat()..LightingParams.KELVIN_MAX.toFloat(),
-                steps = (LightingParams.KELVIN_MAX - LightingParams.KELVIN_MIN) / LightingParams.KELVIN_SLIDER_STEP - 1,
-            )
-        }
-        LightingParams.PRESETS.forEach { name ->
-            val c = Color(ColorTemp.MOOD_COLORS.getValue(name))
-            Box(
-                Modifier.size(36.dp).background(c, CircleShape)
-                    .border(if (light.preset == name) 3.dp else 0.dp, Color.White, CircleShape)
-                    .clickable { light.choosePreset(if (light.preset == name) null else name) }
-            )
-        }
-    }
-}
