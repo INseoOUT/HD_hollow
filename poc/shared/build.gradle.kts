@@ -19,4 +19,5 @@ android {
 
 dependencies {
     testImplementation(libs.junit)
+    testImplementation(libs.org.json) // JVM 테스트용 실제 org.json. 안드로이드 스텁 android.jar 은 호출 시 예외를 던진다
 }
