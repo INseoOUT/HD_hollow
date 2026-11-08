@@ -156,7 +156,7 @@ private fun StudioScreen(studio: StudioVehicle, light: StudioLight, link: Studio
             // 풀 라이트(C13): 모니터·패널을 숨기고 앱 영역 전체를 조명으로. 밝기는 색의 밝기로. 탭하면 복귀, 다이얼은 그대로
             Box(
                 Modifier.fillMaxSize()
-                    .background(lerp(Color.Black, edgeColor, 0.3f + 0.7f * light.level))
+                    .background(lerp(Color.Black, edgeColor, 0.5f + 0.5f * light.level)) // 60% 에서도 충분히 밝게
                     .clickable { light.fullLight = false },
                 contentAlignment = Alignment.BottomCenter
             ) {
