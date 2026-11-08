@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
 import android.graphics.PixelFormat
@@ -40,6 +41,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.ByteArrayOutputStream
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.max
 import kotlin.math.min
 
@@ -89,9 +91,11 @@ class MirrorService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        init(this)
         link = StudioLink(
-            hello = { val m = realMetrics(); Hello(Protocol.ROLE_PHONE, m.widthPixels, m.heightPixels) },
-            onLight = { p -> _lighting.value = p }, // 차에서 온 값. src=car 라 다시 보내지 않는다
+            hello = { val m = realMetrics(); Hello(Protocol.ROLE_PHONE, m.widthPixels, m.heightPixels, now = System.currentTimeMillis()) },
+            onLight = { p -> acceptFromCar(p) }, // 차에서 온 값. 더 최신일 때만 받고, src=car 라 다시 보내지 않는다
+            current = { _lighting.value }, // 차가 붙으면 내 값을 보내 어느 쪽이 최신인지 가리게 한다
         )
         scope.launch { link.clients.collect { n -> _status.update { it.copy(clients = n) } } }
         // 폰에서 바뀐 조명 값을 차로. 차에서 온 값(src=car)은 되돌려 보내지 않는다. 플로팅 컨트롤 표시도 갱신
@@ -359,9 +363,31 @@ class MirrorService : Service() {
 
         fun stopIntent(context: Context): Intent = Intent(context, MirrorService::class.java).setAction(ACTION_STOP)
 
-        /** 폰에서 조명 값을 바꾼다. 서비스가 떠 있으면 차로 보낸다. */
+        private var prefs: SharedPreferences? = null
+        private val loaded = AtomicBoolean(false)
+        private const val KEY_LAST = "last"
+
+        /** 마지막 조명 값을 불러온다(액티비티·서비스 onCreate 에서. 한 번만). 기본값(ts 0)은 의미가 없어 건너뛴다. */
+        fun init(context: Context) {
+            if (!loaded.compareAndSet(false, true)) return
+            val p = context.applicationContext.getSharedPreferences("lighting", Context.MODE_PRIVATE)
+            prefs = p
+            p.getString(KEY_LAST, null)?.let(LightingParams::fromJson)?.takeIf { it.ts > 0 }?.let { _lighting.value = it }
+        }
+
+        private fun setLighting(p: LightingParams) {
+            _lighting.value = p
+            if (p.ts > 0) prefs?.edit()?.putString(KEY_LAST, p.toJson())?.apply()
+        }
+
+        /** 폰에서 조명 값을 바꾼다. ts 는 바꾼 시각(어느 쪽이 최신인지 가리는 기준). 서비스가 떠 있으면 차로 보낸다. */
         fun updateLighting(change: (LightingParams) -> LightingParams) {
-            _lighting.update { change(it).normalized().copy(src = Protocol.ROLE_PHONE, ts = System.currentTimeMillis()) }
+            setLighting(change(_lighting.value).normalized().copy(src = Protocol.ROLE_PHONE, ts = System.currentTimeMillis()))
+        }
+
+        /** 차에서 온 값. 내 값보다 최신일 때만 받는다(LightingParams.supersedes). 받은 값은 src=car 라 되돌려 보내지 않는다. */
+        private fun acceptFromCar(p: LightingParams) {
+            if (p.supersedes(_lighting.value)) setLighting(p)
         }
     }
 }

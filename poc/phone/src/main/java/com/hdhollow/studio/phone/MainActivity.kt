@@ -64,6 +64,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        MirrorService.init(this) // 마지막 조명 값 불러오기
         setContent {
             MaterialTheme {
                 Surface(Modifier.fillMaxSize()) {
