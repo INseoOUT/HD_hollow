@@ -2,18 +2,16 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!-- 실제 호출하는 API의 권한만 선언 (샘플 전체 권한 복사 금지) -->
-    <uses-permission android:name="pleos.car.permission.CAR_LIGHTS" />   <!-- 앰비언트 밝기·색 조회 -->
-    <!-- PoC 확인: SDK 어노테이션은 set에 CAR_LIGHTS만 표기하지만 런타임은 "need Permission"으로 거부했다.
-         제어 권한이 실제로 필요한지 검증용. Playground에서 Vehicle Control은 "준비 중"이라 배포 앱에는 못 쓸 수 있음. -->
+    <uses-permission android:name="pleos.car.permission.CAR_LIGHTS" />   <!-- 앰비언트·실내등·독서등 조회(종료 시 복원할 원래 값) -->
+    <!-- 조명 설정(종료 시 복원). SDK 어노테이션은 set에 CAR_LIGHTS만 표기하지만 런타임은 이 권한을 요구한다(에뮬레이터 2.1.0 확인).
+         Playground에서 Vehicle Control은 "준비 중"이라 배포 앱 사용 가능 여부는 별도 확인 -->
     <uses-permission android:name="pleos.car.permission.CONTROL_CAR_LIGHTS" />
-    <uses-permission android:name="pleos.car.permission.CAR_CLIMATE" />  <!-- 공조 풍량 -->
-    <uses-permission android:name="pleos.car.permission.CAR_WINDOWS" />  <!-- 창문 위치 -->
-    <uses-permission android:name="android.car.permission.CAR_POWERTRAIN" /> <!-- 기어(AAOS) -->
-    <uses-permission android:name="android.permission.INTERNET" />       <!-- 폰 영상 수신 -->
+    <uses-permission android:name="android.car.permission.CAR_POWERTRAIN" /> <!-- 기어(AAOS): P·N에서만 사용 -->
+    <uses-permission android:name="android.permission.INTERNET" />       <!-- 폰 연결(영상·조명 값) -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" /> <!-- USB 테더링 네트워크에서 폰(게이트웨이) 찾기 -->
 
     <application
         android:label="Car Studio"
-        android:usesCleartextTraffic="true"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
         <activity
             android:name=".MainActivity"
