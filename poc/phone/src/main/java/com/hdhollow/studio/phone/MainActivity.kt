@@ -118,7 +118,8 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun launchCapture() {
-        // Android 14+ 동의 화면에서 "앱 하나만 공유"를 고르면 그 앱 화면만 차에 보인다. 앱을 바꿔 쓰려면 "전체 화면"
+        // 기본 안내는 "앱 하나만 공유"(11/09 결정): 고른 촬영 앱 화면만 차에 보이고 알림·다른 앱·플로팅 컨트롤은 안 비친다.
+        // "전체 화면"은 앱을 바꿔 가며 쓸 때만. 어느 쪽인지는 시스템 동의 화면에서 사용자가 고른다(앱이 강제할 수 없음)
         capture.launch(getSystemService(MediaProjectionManager::class.java).createScreenCaptureIntent())
     }
 
@@ -159,7 +160,8 @@ private fun PhoneScreen(
             OutlinedButton(onStop, enabled = status.running) { Text("중지") }
         }
         Text(
-            "연결 → 화면 공유 시작 → 쓰던 카메라·라이브 앱을 여세요. 차 화면 가운데에 폰 화면이 뜹니다.",
+            "연결 → 화면 공유 시작 → 동의 화면에서 \"앱 하나만 공유\"를 고르고 쓰던 카메라·라이브 앱을 선택하세요. " +
+                "그 앱 화면만 차 화면 가운데에 뜨고 알림·다른 앱은 보이지 않습니다. 앱을 바꿔 가며 쓸 때만 \"전체 화면\"을 고르세요.",
             style = MaterialTheme.typography.bodySmall
         )
 
@@ -169,7 +171,7 @@ private fun PhoneScreen(
             Column(Modifier.weight(1f)) {
                 Text("플로팅 컨트롤", style = MaterialTheme.typography.bodyMedium)
                 Text(
-                    "촬영 앱 위에 작은 조절판을 띄웁니다. 전체 화면을 공유하면 차에도 비치므로 \"앱 하나만 공유\"와 함께 쓰세요.",
+                    "촬영 앱 위에 작은 조절판을 띄웁니다. 기본인 \"앱 하나만 공유\"에서는 차에 비치지 않습니다(전체 화면 공유면 비침).",
                     style = MaterialTheme.typography.bodySmall
                 )
             }
@@ -178,8 +180,7 @@ private fun PhoneScreen(
 
         OutlinedButton(onTethering) { Text("USB 테더링 설정 열기") }
         Text(
-            "실차에서 USB 로 연결할 때는 폰의 USB 테더링을 켭니다(차가 폰 네트워크에 붙습니다). 에뮬레이터 데모는 adb forward 경로를 씁니다. " +
-                "Android 14 이상의 동의 화면에서 \"앱 하나만 공유\"를 고르면 그 앱 화면만 차에 보입니다.",
+            "실차에서 USB 로 연결할 때는 폰의 USB 테더링을 켭니다(차가 폰 네트워크에 붙습니다). 에뮬레이터 데모는 adb forward 경로를 씁니다.",
             style = MaterialTheme.typography.bodySmall
         )
     }
