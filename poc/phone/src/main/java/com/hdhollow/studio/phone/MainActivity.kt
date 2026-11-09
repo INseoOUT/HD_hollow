@@ -1,163 +1,225 @@
 package com.hdhollow.studio.phone
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.net.ConnectivityManager
+import android.hardware.usb.UsbManager
+import android.media.projection.MediaProjectionManager
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
-import android.view.OrientationEventListener
-import android.view.Surface
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.camera.core.CameraSelector
-import androidx.camera.core.ImageAnalysis
-import androidx.camera.core.resolutionselector.ResolutionSelector
-import androidx.camera.core.resolutionselector.ResolutionStrategy
-import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import kotlinx.coroutines.delay
-import java.io.ByteArrayOutputStream
-import java.net.Inet4Address
-import java.util.concurrent.Executors
+import com.hdhollow.studio.shared.ColorTemp
+import com.hdhollow.studio.shared.LightingParams
+import kotlin.math.roundToInt
 
+/**
+ * 폰 동반 앱. 화면 공유 동의를 받아 [MirrorService] 를 띄우고, 상태와 조명 조절(P8)을 보여 준다.
+ * 촬영은 이 앱이 하지 않는다. 사용자는 기본 카메라·틱톡·유튜브 라이브 앱을 그대로 쓴다.
+ */
 class MainActivity : ComponentActivity() {
 
-    private val server = MjpegServer(PORT)
-    private val analysisExecutor = Executors.newSingleThreadExecutor()
-    private var status by mutableStateOf("카메라 권한 대기 중")
-    private var framesSent by mutableIntStateOf(0)
-    private var useFront by mutableStateOf(true)
-    @Volatile private var mirror = true // 전면일 때만 좌우 반전(셀카처럼). 분석 스레드에서 읽음
-    private var provider: ProcessCameraProvider? = null
-    private lateinit var analysis: ImageAnalysis
-
-    // 폰 방향 → 영상 회전값. 가로로 들면 차 화면에도 가로 영상이 꽉 차게 나온다
-    private val orientation by lazy {
-        object : OrientationEventListener(this) {
-            override fun onOrientationChanged(deg: Int) {
-                if (deg == ORIENTATION_UNKNOWN || !::analysis.isInitialized) return
-                analysis.targetRotation = when (deg) {
-                    in 45 until 135 -> Surface.ROTATION_270
-                    in 135 until 225 -> Surface.ROTATION_180
-                    in 225 until 315 -> Surface.ROTATION_90
-                    else -> Surface.ROTATION_0
-                }
-            }
+    private val capture = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { r ->
+        val data = r.data
+        if (r.resultCode == RESULT_OK && data != null) {
+            ContextCompat.startForegroundService(this, MirrorService.startIntent(this, r.resultCode, data))
         }
     }
 
-    override fun onResume() { super.onResume(); orientation.enable() }
-    override fun onPause() { orientation.disable(); super.onPause() }
-
-    private val requestCamera =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            if (granted) startStreaming() else status = "카메라 권한이 거부되었습니다"
-        }
+    // 알림 권한은 없어도 송출은 된다(알림의 버튼만 안 보임). 결과와 상관없이 동의 화면으로
+    private val notifications = registerForActivityResult(ActivityResultContracts.RequestPermission()) { launchCapture() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        MirrorService.init(this) // 마지막 조명 값 불러오기
+        handleRestart(intent)
         setContent {
-            var clients by mutableIntStateOf(0)
-            LaunchedEffect(Unit) {
-                while (true) { clients = server.clientCount.get(); delay(500) }
-            }
             MaterialTheme {
-              Surface(Modifier.fillMaxSize()) { // 배경·글자색 대비
-                Column(
-                    Modifier.fillMaxSize().padding(24.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text("Car Studio Cam (PoC)", style = MaterialTheme.typography.headlineSmall)
-                    Text("차량 앱에 입력할 주소", style = MaterialTheme.typography.labelLarge)
-                    Text(wifiAddress()?.let { "$it:$PORT" } ?: "Wi-Fi IP 없음", style = MaterialTheme.typography.headlineMedium)
-                    Text("상태: $status")
-                    Text("접속한 차량: $clients · 생성 프레임: $framesSent")
-                    Button({ useFront = !useFront; bindCamera() }) {
-                        Text(if (useFront) "후면 카메라로 전환" else "전면 카메라로 전환")
-                    }
-                    Text("같은 Wi-Fi에 연결된 차량(에뮬레이터 PC)에서 접속하세요.", style = MaterialTheme.typography.bodySmall)
+                Surface(Modifier.fillMaxSize()) {
+                    val status by MirrorService.status.collectAsState()
+                    val lighting by MirrorService.lighting.collectAsState()
+                    val floating by MirrorService.floating.collectAsState()
+                    PhoneScreen(
+                        status, lighting, floating.on,
+                        onStart = ::startSharing,
+                        onStop = { startService(MirrorService.stopIntent(this)) },
+                        onFloating = ::setFloating,
+                        onTethering = ::openTetheringSettings,
+                    )
                 }
-              }
             }
-        }
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
-            startStreaming()
-        } else {
-            requestCamera.launch(Manifest.permission.CAMERA)
         }
     }
 
-    private fun startStreaming() {
-        server.start()
-        val providerFuture = ProcessCameraProvider.getInstance(this)
-        providerFuture.addListener({
-            analysis = ImageAnalysis.Builder()
-                .setResolutionSelector(
-                    ResolutionSelector.Builder()
-                        .setResolutionStrategy(
-                            ResolutionStrategy(
-                                android.util.Size(640, 480),
-                                ResolutionStrategy.FALLBACK_RULE_CLOSEST_LOWER_THEN_HIGHER
-                            )
-                        ).build()
+    override fun onResume() {
+        super.onResume()
+        // 오버레이 권한 설정에서 돌아오면 같은 요청을 다시 보내 플로팅 컨트롤이 뜨게 한다
+        if (MirrorService.floating.value.on) MirrorService.setFloating(true)
+        handleUsbAccessory(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleUsbAccessory(intent)
+        handleRestart(intent)
+    }
+
+    /** '화면 공유가 끝났어요' 알림을 탭해 왔으면 바로 동의 화면으로(공유 앱이 닫혀 공유가 끝난 경우의 재시작 경로) */
+    private fun handleRestart(intent: Intent?) {
+        if (intent?.getBooleanExtra(MirrorService.EXTRA_RESTART, false) != true) return
+        intent.removeExtra(MirrorService.EXTRA_RESTART)
+        if (!MirrorService.status.value.running) startSharing()
+    }
+
+    /** 차가 AOA 로 폰을 액세서리 모드로 바꾸면 시스템이 이 인텐트로 앱을 띄운다. 송출 중이면 서비스가 그 경로를 연다(P13) */
+    private fun handleUsbAccessory(intent: Intent?) {
+        if (intent?.action != UsbManager.ACTION_USB_ACCESSORY_ATTACHED) return
+        if (MirrorService.status.value.running) startService(Intent(this, MirrorService::class.java).setAction(MirrorService.ACTION_ATTACH_USB))
+    }
+
+    private fun startSharing() {
+        val needNotif = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        if (needNotif) notifications.launch(Manifest.permission.POST_NOTIFICATIONS) else launchCapture()
+    }
+
+    private fun launchCapture() {
+        // 기본 안내는 "앱 하나만 공유"(11/09 결정): 고른 촬영 앱 화면만 차에 보이고 알림·다른 앱·플로팅 컨트롤은 안 비친다.
+        // "전체 화면"은 앱을 바꿔 가며 쓸 때만. 어느 쪽인지는 시스템 동의 화면에서 사용자가 고른다(앱이 강제할 수 없음)
+        capture.launch(getSystemService(MediaProjectionManager::class.java).createScreenCaptureIntent())
+    }
+
+    private fun setFloating(on: Boolean) {
+        MirrorService.setFloating(on)
+        if (on && !FloatingControl.canDraw(this)) {
+            startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
+        }
+    }
+
+    /** 실차 USB 테더링 경로용. 테더링 화면은 공개 액션이 없어 AOSP 클래스명을 먼저, 안 되면 무선 설정으로 */
+    private fun openTetheringSettings() {
+        val direct = Intent().setClassName("com.android.settings", "com.android.settings.TetherSettings")
+        runCatching { startActivity(direct) }.onFailure { startActivity(Intent(Settings.ACTION_WIRELESS_SETTINGS)) }
+    }
+}
+
+@Composable
+private fun PhoneScreen(
+    status: MirrorService.Status,
+    lighting: LightingParams,
+    floating: Boolean,
+    onStart: () -> Unit,
+    onStop: () -> Unit,
+    onFloating: (Boolean) -> Unit,
+    onTethering: () -> Unit,
+) {
+    Column(
+        Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text("Car Studio", style = MaterialTheme.typography.headlineSmall)
+        Text(if (status.running) "송출 중 · ${status.fps} fps · ${status.frame}" else "대기 중")
+        Text(if (status.clients > 0) "차량 연결됨" else "차량 연결 대기 중")
+        status.error?.let { Text("오류: $it", color = MaterialTheme.colorScheme.error) }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Button(onStart, enabled = !status.running) { Text("화면 공유 시작") }
+            OutlinedButton(onStop, enabled = status.running) { Text("중지") }
+        }
+        Text(
+            "연결 → 화면 공유 시작 → 동의 화면에서 \"앱 하나만 공유\"를 고르고 쓰던 카메라·라이브 앱을 선택하세요. " +
+                "그 앱 화면만 차 화면 가운데에 뜨고 알림·다른 앱은 보이지 않습니다. 앱을 바꿔 가며 쓸 때만 \"전체 화면\"을 고르세요.",
+            style = MaterialTheme.typography.bodySmall
+        )
+
+        LightingControls(lighting)
+
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+            Column(Modifier.weight(1f)) {
+                Text("플로팅 컨트롤", style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    "촬영 앱 위에 작은 조절판을 띄웁니다. 기본인 \"앱 하나만 공유\"에서는 차에 비치지 않습니다(전체 화면 공유면 비침).",
+                    style = MaterialTheme.typography.bodySmall
                 )
-                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
-                .build()
-            analysis.setAnalyzer(analysisExecutor) { image ->
-                val rotated = image.toBitmap().let { bmp ->
-                    val m = android.graphics.Matrix().apply {
-                        postRotate(image.imageInfo.rotationDegrees.toFloat())
-                        if (mirror) postScale(-1f, 1f)
-                    }
-                    Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height, m, true)
-                }
-                val jpeg = ByteArrayOutputStream().also { rotated.compress(Bitmap.CompressFormat.JPEG, 70, it) }.toByteArray()
-                server.publish(jpeg)
-                framesSent++
-                image.close()
             }
-            provider = providerFuture.get()
-            bindCamera()
-        }, ContextCompat.getMainExecutor(this))
-    }
+            Switch(floating, onFloating)
+        }
 
-    private fun bindCamera() {
-        val p = provider ?: return
-        val front = useFront && p.hasCamera(CameraSelector.DEFAULT_FRONT_CAMERA)
-        mirror = front
-        p.unbindAll()
-        p.bindToLifecycle(this, if (front) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA, analysis)
-        status = "송출 중 (포트 $PORT, ${if (front) "전면" else "후면"})"
+        OutlinedButton(onTethering) { Text("USB 테더링 설정 열기") }
+        Text(
+            "실차에서 USB 로 연결할 때는 폰의 USB 테더링을 켭니다(차가 폰 네트워크에 붙습니다). 에뮬레이터 데모는 adb forward 경로를 씁니다.",
+            style = MaterialTheme.typography.bodySmall
+        )
     }
+}
 
-    private fun wifiAddress(): String? {
-        val cm = getSystemService(ConnectivityManager::class.java)
-        val props = cm.getLinkProperties(cm.activeNetwork) ?: return null
-        return props.linkAddresses.map { it.address }.firstOrNull { it is Inet4Address && !it.isLoopbackAddress }?.hostAddress
+/** 밝기·색온도·무드 색. 차 다이얼과 같은 값을 공유한다(P8). */
+@Composable
+private fun LightingControls(p: LightingParams) {
+    Column(
+        Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp)).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text("조명", style = MaterialTheme.typography.titleMedium)
+            Box(Modifier.size(22.dp).background(Color(ColorTemp.colorFor(p)), CircleShape).border(1.dp, Color.Gray, CircleShape))
+        }
+        Text("밝기 ${(p.level * 100).roundToInt()}%")
+        Slider(p.level, { v -> MirrorService.updateLighting { it.copy(level = v) } }, Modifier.fillMaxWidth())
+        Text("색온도 ${p.preset?.let(FloatingControl::presetLabel) ?: "${p.kelvin}K"}")
+        Slider(
+            p.kelvin.toFloat(),
+            { v ->
+                val k = (v / LightingParams.KELVIN_SLIDER_STEP).roundToInt() * LightingParams.KELVIN_SLIDER_STEP
+                MirrorService.updateLighting { it.copy(kelvin = k, preset = null) }
+            },
+            Modifier.fillMaxWidth(),
+            valueRange = LightingParams.KELVIN_MIN.toFloat()..LightingParams.KELVIN_MAX.toFloat(),
+            steps = (LightingParams.KELVIN_MAX - LightingParams.KELVIN_MIN) / LightingParams.KELVIN_SLIDER_STEP - 1,
+        )
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("무드 색", style = MaterialTheme.typography.bodySmall)
+            LightingParams.PRESETS.forEach { name ->
+                val c = Color(ColorTemp.MOOD_COLORS.getValue(name))
+                Box(
+                    Modifier.size(32.dp).background(c, CircleShape)
+                        .border(if (p.preset == name) 3.dp else 1.dp, if (p.preset == name) Color.Black else Color.Gray, CircleShape)
+                        .clickable { MirrorService.updateLighting { it.copy(preset = if (it.preset == name) null else name) } }
+                )
+            }
+        }
     }
-
-    override fun onDestroy() {
-        server.stop()
-        analysisExecutor.shutdown()
-        super.onDestroy()
-    }
-
-    companion object { const val PORT = 8080 }
 }

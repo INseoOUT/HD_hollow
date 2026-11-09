@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- 디버그 빌드 전용. adb 로 조명 값·프리셋·풀 라이트를 바꿔 탭 좌표에 기대지 않고 자동 테스트한다. 릴리스에는 없다.
+             adb shell am broadcast -n com.hdhollow.studio.car/.DebugReceiver ei:kelvin 3300 ef:level 0.9 es:preset cyan es:scene "웜 뷰티" ez:full true -->
+        <receiver android:name=".DebugReceiver" android:exported="true" />
+    </application>
+</manifest>

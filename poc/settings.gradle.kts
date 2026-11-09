@@ -22,4 +22,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "CarStudioPoc"
-include(":car", ":phone")
+include(":shared", ":car", ":phone")
