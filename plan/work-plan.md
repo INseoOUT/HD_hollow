@@ -92,7 +92,7 @@ T0 머지 뒤 `settings.gradle.kts`·`libs.versions.toml`은 동결한다(충돌
 | 2 | P2 | `MirrorService` 뼈대 + 알림 | 새 `MirrorService.kt` | 포그라운드 서비스. **순서 고정**(API 34+): ① `startForeground(id, 알림, FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)` → ② `getMediaProjection(resultCode, data)` → ③ `projection.registerCallback(cb, handler)` → ④ `ImageReader.newInstance(vw, vh, RGBA_8888, 2)` → ⑤ `createVirtualDisplay("CarStudio", vw, vh, dpi, VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, reader.surface, null, handler)`. 알림 채널 1개, "차량으로 화면 송출 중" + 중지 | 예외 없이 가상 디스플레이 생성. 알림 표시 | 로그 |
 | 3 | P3 | 캡처 → JPEG | `MirrorService.kt` | `HandlerThread`에서 `acquireLatestImage()`. 15fps 제한(직전 전송 후 66ms 미만이면 버림). RGBA 평면 `rowStride/pixelStride` 패딩 보정 후 폭만큼 잘라 JPEG 60~70. 가상 디스플레이는 폰 해상도를 긴 변 1200px 이하로 축소(1080×2400 → 540×1200) | `mock_car.py`에 FRAME이 10~15fps로 들어오고 JPEG 크기가 540×1200 | T2 |
 | 4 | P4 | `StudioLink` 서버 | `MjpegServer.kt` → `StudioLink.kt` | TCP 8080 accept → `TcpTransport` → `MessageCodec`. HELLO 교환, FRAME 최신만 송신, LIGHT 송수신, PING 5초. `StateFlow<LightingParams>`를 서비스가 소유. 액티비티가 죽어도 송출 유지 | mock_car에서 HELLO·FRAME·PING 수신, stdin LIGHT → 폰 상태 갱신 | T2 |
-| 5 | P5 | 액티비티 개편 | `MainActivity.kt` | 카메라 코드·Wi-Fi IP 표시·프레임 카운트 삭제. "화면 공유 시작" → `createScreenCaptureIntent()`를 `StartActivityForResult`로, OK면 `startForegroundService`. "중지". 상태 3줄(송출, 차량 연결, 안내 "연결 → 화면 공유 시작 → 쓰던 카메라·라이브 앱을 여세요"). Android 14 동의 화면의 "앱 하나만 공유 / 전체 화면" 안내 한 줄 | 시작·중지 3회 반복 정상 | 화면 |
+| 5 | P5 | 액티비티 개편 | `MainActivity.kt` | 카메라 코드·Wi-Fi IP 표시·프레임 카운트 삭제. "화면 공유 시작" → `createScreenCaptureIntent()`를 `StartActivityForResult`로, OK면 `startForegroundService`. "중지". 상태 3줄(송출, 차량 연결, 안내 "연결 → 화면 공유 시작 → 쓰던 카메라·라이브 앱을 여세요"). Android 14 동의 화면 안내: 기본은 "앱 하나만 공유"(11/09 결정. 촬영 앱만 차에 보임, 플로팅 컨트롤·알림 비노출), 앱을 바꿔 가며 쓸 때만 "전체 화면" | 시작·중지 3회 반복 정상 | 화면 |
 | 6 | P6 | 종료 처리 | `MirrorService.kt` | `MediaProjection.Callback.onStop`(상태바에서 중지) → `stopSelf`. `onDestroy`: `virtualDisplay.release()`, `reader.close()`, `projection.stop()`, 서버 종료. 토큰은 1회용이라 재시작 시 동의 다시 | 상태바 중지 후 리소스 정리, 재시작 가능 | mock_car 연결 끊김 확인 |
 | 7 | P7 | 회전 대응 | `MirrorService.kt`, `MirrorFit.kt` | 가상 디스플레이는 정사각형(한 변 1200) 하나를 한 번만 만든다. AUTO_MIRROR 가 화면을 비율대로 가운데 맞추므로 `onDisplayChanged` 때(와 300ms 뒤) 내용 영역만 다시 계산해 그 부분을 잘라 보낸다. `resize`+surface 교체 경로는 회전 직후 작게 보이는 문제가 있어 버림(11/09) | 회전 시 FRAME 크기가 540×1200 ↔ 1200×540 | T2 출력 |
 | **I1** | | 통합 1 (11/9 저녁) | | **폰 기본 카메라 앱 화면이 차 화면 가운데에 세로로 뜬다.** 홈으로 나가도 유지 | | A와 |
@@ -134,7 +134,7 @@ B가 1차에서 손대지 않는 것: `poc/car/*`, `:shared`(수정 필요하면
 | 2차 | C13 | 풀 라이트 모드 | | 모니터·패널 숨기고 앱 영역 전체를 링 색으로, 탭으로 복귀 | | |
 | 2차 | C14 | 무선·테더링 주소 | | USB 전송 네트워크(`TRANSPORT_USB`)의 게이트웨이 탐지, Wi-Fi는 NSD 탐색·주소 입력, 상수 주소는 폴백 | | |
 | 2차 | C15 | AOA 전송 | | `UsbManager` host API, 권한 요청, bulk → `AoaTransport`. Pleos 회신이 "가능"일 때만 | | |
-| 2차 | C16 | H.264 | | 차량 CPU가 25%를 넘으면 폰 `MediaCodec` 인코딩 + 차 `MediaCodec` 디코딩 | | |
+| 2차 | C16 | H.264 | | 폰 `MediaCodec`(Surface 입력) 인코딩 + 차 `MediaCodec` 디코딩. **보류**(11/09): 실기기에서 폰 압축+복사 30ms 초과, 차 디코드 CPU 25% 초과, 10fps 미만 중 하나일 때만. 에뮬레이터 측정은 근거가 못 된다(하드웨어 인코더 없음, 병목이 가상 디스플레이·GPU 읽기). 라이선스는 OS 내장 코덱이라 앱 쪽 부담 없음 | | |
 
 ### 4.1 차량 확인 항목 (Pleos 에뮬레이터 2.1.0 + Virtual Console)
 
@@ -217,7 +217,7 @@ A가 1차에서 손대지 않는 것: `poc/phone/*`.
 | `FLAG_SECURE` 앱 검은 화면 | 일부 앱 미지원 | 카메라·라이브 UI는 보통 해당 없음. 실기기 확인 후 README에 | 2차 |
 | Android 14+ 세션마다 동의, 토큰 1회용 | 시작 흐름 한 탭 추가 | P5 안내 문구 | P5 |
 | 알림 액션 3개 제한 | 백그라운드에서 밝기 조절 불가 | 1차는 색온도만. 2차 P12 | P9 |
-| 차량 MJPEG 디코드 CPU | 정차 ≤25% 목표 | 축소·15fps. 넘으면 C16 | C10 |
+| 차량 MJPEG 디코드 CPU | 정차 ≤25% 목표 | 축소·15fps. 에뮬레이터 4~6fps 에서 차 앱 36%(코어 하나 기준, 4코어의 9%), 540×1200 디코드 3~6ms(벤치)~13~50ms(경쟁 중). 넘으면 C16 | C10 |
 | 동시 조작 값 튐 | 조명이 잠깐 왔다 갔다 | 마지막 수신 적용, 150ms 디바운스 | 2.2 |
 | Virtual Console이 실내등·독서등을 반영하지 않음 | C5·C6 검증 불가 | 앰비언트만으로 1차 제출, 실내등·독서등은 "조회만" 표시. 기획서 5번 문구 수정 | A |
 | B의 미러링이 11/9에 안 끝남 | I1 지연 | A는 영향 없음(mock). I1을 11/10 오전으로, P8·P9를 하루씩 민다. 그래도 밀리면 P9 제외 | 7절 |
@@ -255,6 +255,8 @@ A가 1차에서 손대지 않는 것: `poc/phone/*`.
 | 1 | 1차 전송 포맷: 프레임 메시지(2.2) vs HTTP(MJPEG) 유지 | **프레임 메시지.** 제어 채널을 아직 안 만든 지금이 바꾸기 가장 싸고, AOA가 와도 전송 계층만 추가하면 된다. HTTP 유지는 검증된 MJPEG 코드를 안 건드리는 대신 제어 채널까지 HTTP로 만들면 나중에 두 번 고친다 | I0 (11/9 오전) |
 | 2 | N 기어: P·N 허용 vs P만 | 현재(P·N) 유지. Pleos가 N에서도 가리므로 실질 차이 없음 | 11/13 |
 | 3 | 앱명·팀명 | — | 11/13 (서명·APK 파일명) |
+| 4 | 기본 공유 모드 안내 | **"앱 하나만 공유"로 결정(11/09).** 촬영 앱만 차에 보여 프라이버시가 지켜지고 플로팅 컨트롤이 안 비친다. 가려짐·종료는 STATUS 안내로 메운다. 앱은 선택을 강제할 수 없고 사용자가 동의 화면에서 고른다 | 완료 |
+| 5 | H.264 전환 | **보류(11/09).** 에뮬레이터 측정으론 JPEG 가 병목이 아니고 소프트웨어 H.264 는 더 느리다. 실기기 1분 로그로 결정(기준은 C16). 라이선스는 걸림돌 아님 | 실기기 연결 때 |
 
 기획서 쪽 결정(가정값, 제출 저장소, 숏폼)은 [submission-draft.md](submission-draft.md) 3절.
 
@@ -266,4 +268,7 @@ A가 1차에서 손대지 않는 것: `poc/phone/*`.
 - 차량 앱 수신부는 프레임 소스가 카메라든 화면이든 구분하지 않는다.
 - Pleos 문서(~130쪽 가이드)에서 USB 언급은 Android Auto(AOAP/USB) 용어 설명 하나뿐이다. 서드파티 앱의 USB 사용 여부는 문서에 없다.
 - 켈빈→RGB 근사식은 표준 라이브러리만으로 구현된다.
+- 폰 에뮬레이터 기본 AVD(Medium_Phone)는 CPU 1코어라 송출이 1fps 로 나온다. `-cores 4` 로 띄우면 홈 1~2fps(바뀔 때만), 스톱워치 7~8fps, 카메라 프리뷰 4~6fps(11/09). 해상도·품질을 낮춰도 fps 가 같아 병목은 에뮬레이터의 가상 디스플레이 합성·GPU 버퍼 읽기와 카메라 HAL 경쟁이다(poc/README.md 'fps 측정').
+- 코덱 벤치(11/09, 540×1200): JPEG q60 인코드 8~15ms·디코드 3~6ms, 소프트웨어 H.264 인코드 30~35ms·디코드 8~9ms, 크기는 H.264 가 10배 작다. 두 에뮬레이터 모두 인코더는 c2.android.avc.encoder(소프트웨어)뿐, 디코더는 c2.goldfish.h264.decoder(호스트)·c2.android.avc.decoder.
+- API 37 에뮬레이터의 화면 공유 동의 화면은 "Share one app" 이 기본 선택이고, 앱 목록에서 고른다.
 - 11/8 범위 정리 코드(기어 P·N 게이트, 앰비언트 원래 값 복원, 풍량·창문·주소 입력란 제거)는 에뮬레이터에서 동작을 확인한 뒤 폐기했다. 설계는 CR·C4에 적어 두었다. 그때 확인된 것: P에서 동작, N에서도 Pleos가 DO 미선언 앱을 가림, D·R 전환 시 3초 뒤 종료·앰비언트 복원(30/`#00e5ff`), D에서 실행 시 즉시 종료.
