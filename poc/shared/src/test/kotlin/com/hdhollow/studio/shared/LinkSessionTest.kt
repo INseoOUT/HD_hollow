@@ -119,7 +119,7 @@ class LinkSessionTest {
         assertTrue(carSession.sendLight(LightingParams(kelvin = 4000, src = Protocol.ROLE_CAR, ts = 10_000)))
         assertTrue(phone.light.await(2, TimeUnit.SECONDS))
         val back = phone.lastLight.get().ts
-        assertTrue("차 ts 10000 - 5초 = 약 5000 이어야 한다: $back", back in 4_500L..5_000L)
+        assertTrue("차 ts 10000 - 5초 = 약 5000 이어야 한다(보정은 받는 쪽이 늦게 읽어 0 이상): $back", back in 5_000L..5_500L)
 
         phoneSession.close()
         carSession.close()

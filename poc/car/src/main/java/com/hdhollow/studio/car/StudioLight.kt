@@ -8,6 +8,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.hdhollow.studio.shared.ColorTemp
 import com.hdhollow.studio.shared.LightingParams
+import com.hdhollow.studio.ui.LightLabels
 import kotlin.math.roundToInt
 
 /** 다이얼·슬라이더·폰이 공유하는 조명 값의 순수 계산. 테스트 대상. */
@@ -81,13 +82,6 @@ class StudioLight(private val now: () -> Long = System::currentTimeMillis) {
 
     val argb: Int get() = LightLogic.argb(params(""))
 
-    /** 패널 라벨용. 예: "3500K", "퍼플". */
-    val colorLabel: String
-        get() = when (preset) {
-            null -> "${kelvin}K"
-            "cyan" -> "시안"
-            "blue" -> "블루"
-            "purple" -> "퍼플"
-            else -> preset ?: ""
-        }
+    /** 라벨용. 예: "3500K", "퍼플". 문구는 폰과 같은 LightLabels. */
+    val colorLabel: String get() = LightLabels.color(params(""))
 }

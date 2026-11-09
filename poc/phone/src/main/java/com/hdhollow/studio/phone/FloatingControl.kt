@@ -14,8 +14,11 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.compose.ui.graphics.toArgb
 import com.hdhollow.studio.shared.ColorTemp
 import com.hdhollow.studio.shared.LightingParams
+import com.hdhollow.studio.ui.LightLabels
+import com.hdhollow.studio.ui.StudioColors
 import kotlin.math.abs
 
 /**
@@ -61,14 +64,14 @@ class FloatingControl(private val context: Context) {
     /** 현재 값 표시(색 견본, 라벨). 서비스가 조명 값이 바뀔 때 부른다. */
     fun render(p: LightingParams) {
         (swatch?.background as? GradientDrawable)?.setColor(ColorTemp.colorFor(p))
-        label?.text = "${(p.level * 100).toInt()}% · ${p.preset?.let(::presetLabel) ?: "${p.kelvin}K"}"
+        label?.text = LightLabels.summary(p)
     }
 
     @SuppressLint("ClickableViewAccessibility")
     private fun build(params: WindowManager.LayoutParams): View {
         val column = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            background = GradientDrawable().apply { cornerRadius = dp(14).toFloat(); setColor(0xE6141618.toInt()) }
+            background = GradientDrawable().apply { cornerRadius = dp(18).toFloat(); setColor(StudioColors.PanelScrim.toArgb()) }
             setPadding(dp(10), dp(8), dp(10), dp(8))
         }
         val head = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
@@ -108,9 +111,9 @@ class FloatingControl(private val context: Context) {
             row.addView(TextView(context).apply {
                 this.text = text
                 setTextColor(Color.WHITE)
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
                 isSingleLine = true
-                background = GradientDrawable().apply { cornerRadius = dp(999).toFloat(); setColor(0xFF2A2E36.toInt()) }
+                background = GradientDrawable().apply { cornerRadius = dp(999).toFloat(); setColor(StudioColors.SurfaceHigh.toArgb()) }
                 setPadding(dp(12), dp(6), dp(12), dp(6))
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
                     setMargins(dp(2), dp(4), dp(2), 0)
@@ -131,12 +134,5 @@ class FloatingControl(private val context: Context) {
         private const val PANEL_WIDTH_DP = 190
 
         fun canDraw(context: Context): Boolean = Settings.canDrawOverlays(context)
-
-        fun presetLabel(name: String): String = when (name) {
-            "cyan" -> "시안"
-            "blue" -> "블루"
-            "purple" -> "퍼플"
-            else -> name
-        }
     }
 }

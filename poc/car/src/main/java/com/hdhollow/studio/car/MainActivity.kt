@@ -7,15 +7,19 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -36,6 +40,8 @@ import com.android.car.ui.FocusArea
 import com.android.car.ui.FocusParkingView
 import com.hdhollow.studio.shared.LightingParams
 import com.hdhollow.studio.shared.Protocol
+import com.hdhollow.studio.ui.StudioColors
+import com.hdhollow.studio.ui.StudioTheme
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -131,7 +137,7 @@ class MainActivity : ComponentActivity() {
 
         val dial = DialTarget(this, onRotate = light::rotate, onPress = { light.dialColor = !light.dialColor })
         val screen = ComposeView(this).apply {
-            setContent { MaterialTheme(colorScheme = darkColorScheme()) { StudioScreen(studio, light, link, presets, exiting) } }
+            setContent { StudioTheme(car = true) { StudioScreen(studio, light, link, presets, exiting) } }
         }
         // RotaryService 요건: 창마다 FocusParkingView(맨 앞, FocusArea 밖) + 포커스 대상은 FocusArea 안.
         // 하나라도 없으면 회전을 버리거나 포커스를 Driving view로 넘긴다
@@ -194,7 +200,8 @@ private fun StudioScreen(
             ) {
                 Text(
                     "풀 라이트 · 다이얼로 밝기·색온도 조절 · 화면을 탭하면 돌아갑니다",
-                    color = Color(0x99000000), fontSize = 16.sp, modifier = Modifier.padding(24.dp)
+                    color = Color.White.copy(alpha = 0.9f), style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(32.dp).background(Color(0x66000000), CircleShape).padding(horizontal = 22.dp, vertical = 12.dp),
                 )
             }
         } else {
@@ -204,50 +211,85 @@ private fun StudioScreen(
                     .padding((8 + 72 * light.level).dp)
                     .clip(RoundedCornerShape(INNER_RADIUS))
                     .background(Color.Black)
-                    .padding(12.dp)
+                    .padding(16.dp)
             ) {
-                Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     // 왼쪽: 폰 화면 모니터(세로 영상은 Fit, 남는 폭은 검정)
-                    Box(Modifier.weight(1f).fillMaxHeight()) {
+                    Box(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(24.dp)), contentAlignment = Alignment.Center) {
                         val f = frame
                         if (f != null) {
                             Image(f.asImageBitmap(), "phone screen", Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
                             // "앱 하나만 공유"에서 그 앱이 가려지면 프레임이 검게 온다. 이유를 띄운다
                             if (share?.visible == false) {
-                                Box(Modifier.fillMaxSize().background(Color(0xAA000000)), contentAlignment = Alignment.Center) {
-                                    Text(
-                                        "공유한 앱이 폰에서 가려져 있습니다.\n폰에서 그 앱을 다시 앞으로 가져오세요",
-                                        color = Color.White, fontSize = 22.sp, textAlign = TextAlign.Center
-                                    )
+                                Box(Modifier.fillMaxSize().background(Color(0xB3000000)), contentAlignment = Alignment.Center) {
+                                    Message("공유한 앱이 폰에서 가려져 있습니다", "폰에서 그 앱을 다시 앞으로 가져오세요")
                                 }
                             }
                         } else {
-                            Text(
-                                when {
-                                    share?.stopped == true -> "폰 화면 공유가 끝났습니다.\n폰에서 '화면 공유 시작'을 다시 눌러 주세요"
-                                    connected -> "폰 화면을 기다리는 중…\n폰에서 화면 공유를 시작해 주세요"
-                                    else -> "폰 화면 연결 대기 중\n폰을 연결하고 Car Studio에서 화면 공유를 시작해 주세요"
-                                },
-                                Modifier.align(Alignment.Center), color = Color.Gray, fontSize = 22.sp, textAlign = TextAlign.Center
-                            )
+                            val stopped = share?.stopped == true
+                            val (title, body) = when {
+                                stopped -> "폰 화면 공유가 끝났습니다" to "폰에서 '화면 공유 시작'을 다시 눌러 주세요"
+                                connected -> "폰 화면을 기다리는 중" to "폰의 Car Studio 에서 화면 공유를 시작해 주세요"
+                                else -> "폰 연결 대기 중" to "폰을 연결하고 Car Studio 에서 화면 공유를 시작해 주세요"
+                            }
+                            MonitorPlaceholder(title, body, steps = !connected && !stopped)
                         }
                     }
                     // 오른쪽: 조명 패널
-                    LightPanel(light, car.lighting, studio, presets)
+                    LightPanel(light, car.lighting, studio, presets, connected = connected, streaming = frame != null)
                 }
             }
         }
-        val notice = when {
-            exiting && car.gearFailed -> "기어 상태를 확인할 수 없어 스튜디오를 종료합니다."
-            exiting -> "주행 기어(D·R)에서는 스튜디오를 사용할 수 없어 종료합니다.\nP 또는 N에서 다시 실행해 주세요."
-            car.usable == null -> "차량 상태 확인 중…"
+        val notice: Pair<String, String?>? = when {
+            exiting && car.gearFailed -> "기어 상태를 확인할 수 없어 스튜디오를 종료합니다" to null
+            exiting -> "주행 기어(D·R)에서는 스튜디오를 사용할 수 없어 종료합니다" to "P 또는 N에서 다시 실행해 주세요"
+            car.usable == null -> "차량 상태 확인 중…" to null
             else -> null
         }
         if (notice != null) {
             Box(Modifier.fillMaxSize().background(Color(0xF0000000)), contentAlignment = Alignment.Center) {
-                Text(notice, color = Color.White, fontSize = 28.sp, textAlign = TextAlign.Center)
+                Column(Modifier.widthIn(max = 760.dp).padding(40.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(notice.first, color = StudioColors.Text, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+                    notice.second?.let { Text(it, color = StudioColors.TextDim, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center) }
+                }
             }
         }
     }
 }
 
+/** 폰 화면이 아직 없을 때: 폰 윤곽, 상태 문장, (연결 전이면) 사용 순서. */
+@Composable
+private fun MonitorPlaceholder(title: String, body: String, steps: Boolean) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(28.dp)) {
+        Box(Modifier.size(150.dp, 300.dp).border(2.dp, StudioColors.Line, RoundedCornerShape(30.dp)), contentAlignment = Alignment.TopCenter) {
+            Box(Modifier.padding(top = 16.dp).size(44.dp, 6.dp).background(StudioColors.Line, CircleShape))
+        }
+        Message(title, body)
+        if (steps) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                listOf("폰 연결", "화면 공유 시작", "앱 하나만 공유").forEachIndexed { i, s -> StepPill(i + 1, s) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun Message(title: String, body: String?) {
+    Column(Modifier.padding(horizontal = 32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(title, color = StudioColors.Text, style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center)
+        if (body != null) Text(body, color = StudioColors.TextDim, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
+    }
+}
+
+@Composable
+private fun StepPill(n: Int, text: String) {
+    Row(
+        Modifier.background(StudioColors.SurfaceHigh, CircleShape).padding(start = 6.dp, end = 16.dp, top = 6.dp, bottom = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(28.dp).background(StudioColors.Text, CircleShape), contentAlignment = Alignment.Center) {
+            Text("$n", color = StudioColors.Ink, style = MaterialTheme.typography.labelMedium)
+        }
+        Text(text, color = StudioColors.Text, style = MaterialTheme.typography.labelLarge)
+    }
+}

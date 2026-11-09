@@ -2,6 +2,7 @@ package com.hdhollow.studio.car
 
 import ai.pleos.playground.vehicle.constant.control.LightSwitch
 import android.content.Context
+import com.hdhollow.studio.shared.ColorTemp
 import com.hdhollow.studio.shared.LightingParams
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -56,6 +57,10 @@ object Scenes {
             lighting.readingOptions.forEach { (area, options) -> if (sw in options) studio.setReading(area, sw) }
         }
     }
+
+    /** 프리셋 칩의 색 점: 무드 색 또는 색온도의 색. 둘 다 없으면 흰색. */
+    fun argb(scene: Scene): Int =
+        scene.preset?.let { ColorTemp.MOOD_COLORS[it] } ?: scene.kelvin?.let(ColorTemp::kelvinToArgb) ?: 0xFFFFFFFF.toInt()
 
     /** 지금 조명 값과 같은 프리셋(칩 선택 표시용). 없으면 null. */
     fun matching(light: StudioLight, all: List<Scene> = BUILT_IN): Scene? = all.firstOrNull { s ->
