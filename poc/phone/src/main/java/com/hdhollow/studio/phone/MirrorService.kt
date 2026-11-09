@@ -223,7 +223,7 @@ class MirrorService : Service() {
         val p = projection ?: return
         if (display != null) return
         val m = realMetrics()
-        side = MirrorFit.side(m.widthPixels, m.heightPixels, Protocol.FRAME_MAX_SIDE)
+        side = MirrorFit.side(m.widthPixels, m.heightPixels, maxSide)
         val r = ImageReader.newInstance(side, side, PixelFormat.RGBA_8888, 2)
         r.setOnImageAvailableListener({ onImage(it) }, handler)
         reader = r
@@ -267,7 +267,7 @@ class MirrorService : Service() {
             val cropped = Bitmap.createBitmap(bmp, c.x, c.y, cw, ch)
             val t1 = System.nanoTime()
             jpegOut.reset()
-            cropped.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, jpegOut)
+            cropped.compress(Bitmap.CompressFormat.JPEG, jpegQuality, jpegOut)
             cropped.recycle()
             val jpeg = jpegOut.toByteArray()
             val t2 = System.nanoTime()
@@ -281,7 +281,7 @@ class MirrorService : Service() {
             if (now - fpsWindowNs >= 1_000_000_000L) {
                 val fps = fpsCount
                 // 1초마다 단계별 평균(ms): 어디가 병목인지 실기기에서 바로 읽는다
-                Log.d(TAG, "${fps}fps 복사·크롭 ${copyNs / fps / 1_000_000}ms 압축 ${compressNs / fps / 1_000_000}ms 전송 ${sendNs / fps / 1_000_000}ms (${jpeg.size / 1024}KB)")
+                Log.d(TAG, "${fps}fps 복사·크롭 ${copyNs / fps / 1_000_000}ms 압축 ${compressNs / fps / 1_000_000}ms 전송 ${sendNs / fps / 1_000_000}ms (${jpeg.size / 1024}KB ${cw}x${ch} q$jpegQuality)")
                 fpsCount = 0
                 copyNs = 0; compressNs = 0; sendNs = 0
                 fpsWindowNs = now
@@ -383,8 +383,12 @@ class MirrorService : Service() {
         private const val CHANNEL = "mirror"
         private const val NOTIFICATION_ID = 1
         private const val NOTIFICATION_ENDED_ID = 2
-        private const val JPEG_QUALITY = 60 // 65 → 60: 크기·압축 시간을 조금 줄인다(차 모니터에서 차이 안 보임)
         private const val FRAME_INTERVAL_NS = 1_000_000_000L / Protocol.FRAME_MAX_FPS
+
+        /** JPEG 품질. 65 → 60(11/09): 크기·압축 시간을 조금 줄인다(차 모니터에서 차이 안 보임). 디버그 리시버가 fps 측정용으로 바꾼다 */
+        @Volatile var jpegQuality = 60
+        /** 가상 디스플레이 한 변의 상한(px). 다음 공유 시작부터 적용. 디버그 리시버가 fps 측정용으로 바꾼다 */
+        @Volatile var maxSide = Protocol.FRAME_MAX_SIDE
 
         const val ACTION_START = "com.hdhollow.studio.phone.START"
         const val ACTION_STOP = "com.hdhollow.studio.phone.STOP"
