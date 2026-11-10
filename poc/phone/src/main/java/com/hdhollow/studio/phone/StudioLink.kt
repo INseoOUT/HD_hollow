@@ -6,6 +6,8 @@ import com.hdhollow.studio.shared.LightingParams
 import com.hdhollow.studio.shared.LinkSession
 import com.hdhollow.studio.shared.Protocol
 import com.hdhollow.studio.shared.ShareStatus
+import com.hdhollow.studio.shared.StudioCommand
+import com.hdhollow.studio.shared.StudioState
 import com.hdhollow.studio.shared.TcpTransport
 import com.hdhollow.studio.shared.Transport
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,6 +19,7 @@ import kotlin.concurrent.thread
 
 /**
  * 폰 쪽 링크. 차가 접속해 오면(TCP, 2차에는 USB 액세서리도) 세션을 만들고 FRAME 을 흘려보낸다.
+ * STATE(앱 상태)는 차가 기준이고 폰은 바꾼 순간에만 보낸다. COMMAND 는 폰 → 차(프리셋).
  * LIGHT 는 양방향: 차에서 오면 [onLight], 폰에서 바뀌면 [sendLight]. plan/work-plan.md 2절.
  */
 class StudioLink(
@@ -25,6 +28,7 @@ class StudioLink(
     private val onLight: (LightingParams) -> Unit,
     private val current: () -> LightingParams, // 차가 붙으면 지금 값을 보내 어느 쪽이 최신인지 가리게 한다
     private val status: () -> ShareStatus, // 차가 붙으면 지금 공유 상태(앱 가려짐 여부)도 보낸다
+    private val onState: (StudioState) -> Unit = {}, // 차의 앱 상태(차가 기준. 붙을 때와 바뀔 때마다 온다)
 ) {
     private val sessions = CopyOnWriteArrayList<LinkSession>()
     private val _clients = MutableStateFlow(0)
@@ -57,6 +61,8 @@ class StudioLink(
 
             override fun onLight(params: LightingParams) = onLight.invoke(params)
 
+            override fun onState(state: StudioState) = onState.invoke(state)
+
             override fun onClosed(reason: String) {
                 Log.d(TAG, "차 연결 종료: $reason")
                 sessions.remove(session)
@@ -85,6 +91,16 @@ class StudioLink(
 
     fun sendLight(params: LightingParams) {
         sessions.forEach { it.sendLight(params.copy(src = Protocol.ROLE_PHONE)) }
+    }
+
+    /** 폰에서 바꾼 앱 상태(앰비언트 연동·풀 라이트·다이얼 대상·차 테마)를 모든 차에. */
+    fun sendState(state: StudioState) {
+        sessions.forEach { it.sendState(state.copy(src = Protocol.ROLE_PHONE)) }
+    }
+
+    /** 프리셋 적용·저장·삭제 부탁을 모든 차에. */
+    fun sendCommand(command: StudioCommand) {
+        sessions.forEach { it.sendCommand(command) }
     }
 
     /** 공유 상태(앱 가려짐·공유 끝남)를 모든 차에. */

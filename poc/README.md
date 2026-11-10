@@ -3,7 +3,8 @@
 > 작성일: 2026-11-09  
 > 기획: [../plan/submission-draft.md](../plan/submission-draft.md) · 계약·작업 순서: [../plan/work-plan.md](../plan/work-plan.md)  
 > 상태: 1차·2차 범위를 한 번에 구현한 상태(2026-11-09, 브랜치 `feat/pleos-hyundio`). 단위 테스트는 통과했고 에뮬레이터 확인은 아래 표 참고.  
-> 2026-11-10 브랜치 `design/hyundio`: 화면 디자인 개편(`ui/` 모듈). 차 패널·모니터 안내·폰 화면을 같은 디자인 시스템으로 다시 그림. 동작·계약은 그대로.
+> 2026-11-10 브랜치 `design/hyundio`: 화면 디자인 개편(`ui/` 모듈). 차 패널·모니터 안내·폰 화면을 같은 디자인 시스템으로 다시 그림.  
+> 같은 날 추가: 테마(차는 실내 마감에 맞춘 어두운 세트 3개, 폰은 시스템 라이트·다크), 차 패널과 폰 화면이 같은 구역 컴포넌트를 쓰고, 스튜디오 앱 상태(프리셋·앰비언트 연동·풀 라이트·다이얼 대상·차 테마)를 양쪽에서 바꾼다(계약 STATE 0x06·COMMAND 0x07).
 
 폰 화면을 차 화면 가운데에 띄우고(모니터), 차 화면 가장자리와 실내 조명을 스튜디오 조명으로 쓰며, 다이얼·폰 어디서든 색온도·밝기를 맞춘다. 촬영·저장·라이브 송출은 사용자가 쓰던 폰 앱(기본 카메라·틱톡·유튜브 라이브)이 그대로 한다.
 
@@ -11,10 +12,10 @@
 
 | 모듈 | 하는 일 |
 |---|---|
-| `shared/` | 폰↔차 계약. `Protocol`(포트 8080, 메시지 HELLO/FRAME/LIGHT/PING, 상한·주기), `MessageCodec`(type 1B \| length 4B \| payload), `LightingParams`(색온도 2700~8000K·기본 7000K·밝기·무드 색 JSON), `ColorTemp`(켈빈→ARGB, 링과 앰비언트가 같은 함수), `Transport`(TCP·스트림), `LinkSession`(세션: HELLO 교환, 최신 FRAME 만, PING, 무수신 15초), `Aoa`(USB 액세서리 상수) |
-| `ui/` | 두 앱이 같이 쓰는 디자인 시스템. `StudioTheme`(어두운 무채색 팔레트 `StudioColors`, 차/폰 글자 크기), 그라데이션 슬라이더(`LevelSlider`·`KelvinSlider`: 트랙이 실제 밝기·색온도 색, 손잡이 속이 지금 빛), `StudioChip`·`MoodDots`·`Segmented`·`StatusPill`·`LightReadout`(색 견본 + "7000K · 60%" + 느낌 이름)·`StudioCard`·`StepRow`, 조명 값 라벨(`LightLabels`). Compose 를 모르는 `shared` 와 전송을 모르는 `ui` 를 나눈다 |
+| `shared/` | 폰↔차 계약. `Protocol`(포트 8080, 메시지 HELLO/FRAME/LIGHT/PING/STATUS/STATE/COMMAND, 상한·주기), `MessageCodec`(type 1B \| length 4B \| payload), `LightingParams`(색온도 2700~8000K·기본 7000K·밝기·무드 색 JSON), `ColorTemp`(켈빈→ARGB, 링과 앰비언트가 같은 함수), `Scene`·`Scenes`(프리셋: 기본 4종, 적용·일치·저장 JSON), `StudioState`(앰비언트 연동·풀 라이트·다이얼 대상·차 테마·사용자 프리셋. 차가 기준)·`StudioCommand`(폰이 차에 부탁하는 프리셋 적용·저장·삭제), `Transport`(TCP·스트림), `LinkSession`(세션: HELLO 교환, 최신 FRAME 만, PING, 무수신 15초), `Aoa`(USB 액세서리 상수) |
+| `ui/` | 두 앱이 같이 쓰는 디자인 시스템. `StudioTheme`(색 토큰 `StudioPalette`: 차 테마 `CarThemes` 블랙·웜 그레이지·네이비는 모두 어두운 저채도, 폰은 시스템을 따르는 라이트·다크. 컴포저블에서는 `StudioColors` 로 지금 테마의 색을 읽는다. 차/폰 글자 크기), 두 앱이 똑같이 쓰는 구역 `RingLightSection`·`PresetSection`·`CarScreenSection`(차에서는 구분선, 폰에서는 카드로 묶임), 그라데이션 슬라이더(`LevelSlider`·`KelvinSlider`: 트랙이 실제 밝기·색온도 색, 손잡이 속이 지금 빛), `StudioChip`·`MoodDots`·`Segmented`·`StatusPill`·`LightReadout`(색 견본 + "7000K · 60%" + 느낌 이름)·`StudioCard`·`StepRow`, 조명 값 라벨(`LightLabels`). Compose 를 모르는 `shared` 와 전송을 모르는 `ui` 를 나눈다 |
 | `car/` | Pleos Connect 차량 앱. 기어 P·N 게이트(D·R 이면 경고 3초 후 종료, 실행 시점에도 같음), 링라이트(테두리 두께 = 밝기, 색온도/무드 색), 폰 화면 모니터, 조명 패널(프리셋 기본 4종 + 사용자 저장·삭제, 앰비언트 연동; 실내등·독서등은 프리셋으로만 바뀌고 종료 시 원래 값 복원. 원래 값은 `OriginalStore` 에 저장해 비정상 종료 뒤 다음 실행이 이어받아 복원), 풀 라이트 모드, 공유 상태 안내(공유 앱이 가려지면 오버레이, 공유가 끝나면 문구), 다이얼(`DialTarget`), 폰 연결(`PhoneLink`: USB 액세서리 → TCP[테더링 게이트웨이 → NSD → 10.0.2.2]) |
-| `phone/` | 폰 동반 앱. `MirrorService`(MediaProjection → 정사각 1200px 가상 디스플레이에서 폰 화면 영역(`MirrorFit`)만 잘라 15fps JPEG → 세션), `StudioLink`(TCP 8080 서버 + USB 액세서리 세션), 조명 조절 화면·알림 버튼(따뜻하게·차갑게·중지)·플로팅 컨트롤, 공유 상태(STATUS: 앱 가려짐·공유 끝남) 전송과 '공유가 끝났어요' 알림(탭하면 재시작), NSD `_carstudio._tcp` 광고. 디버그 빌드에만 `DebugReceiver`(adb 로 조명 값·JPEG 품질·한 변 변경)와 `CodecBench`(같은 그림을 JPEG 와 H.264 로 인코드·디코드해 비교) |
+| `phone/` | 폰 동반 앱. `MirrorService`(MediaProjection → 정사각 1200px 가상 디스플레이에서 폰 화면 영역(`MirrorFit`)만 잘라 15fps JPEG → 세션), `StudioLink`(TCP 8080 서버 + USB 액세서리 세션), 차 패널과 같은 구역(링라이트·프리셋·차 화면: 차가 붙어 있으면 다이얼 대상·앰비언트 연동·풀 라이트·차 테마를 바꾸고 프리셋을 저장·삭제)·알림 버튼(따뜻하게·차갑게·중지)·플로팅 컨트롤(항상 어두운 판), 공유 상태(STATUS: 앱 가려짐·공유 끝남) 전송과 '공유가 끝났어요' 알림(탭하면 재시작), NSD `_carstudio._tcp` 광고. 디버그 빌드에만 `DebugReceiver`(adb 로 조명 값·JPEG 품질·한 변 변경)와 `CodecBench`(같은 그림을 JPEG 와 H.264 로 인코드·디코드해 비교) |
 | `tools/` | `mock_phone.py`(가짜 폰: 차량 앱 단독 검증), `mock_car.py`(가짜 차: 폰 앱 단독 검증). 표준 라이브러리만 |
 
 연결 방향은 **차 → 폰**(폰이 listen). 에뮬레이터 NAT 에서 바깥으로 나가는 접속만 되고, USB 테더링에서도 폰이 게이트웨이라 자연스럽다. 메시지는 전송 계층과 분리돼 있어 TCP 든 USB 액세서리든 앱 로직이 같다.
@@ -23,7 +24,7 @@
 
 ```sh
 export JAVA_HOME=$(/usr/libexec/java_home -v 17)   # Temurin 17
-./gradlew assembleDebug testDebugUnitTest            # 단위 테스트 shared 31 · ui 3 · car 14 · phone 4
+./gradlew assembleDebug testDebugUnitTest            # 단위 테스트 shared 44 · ui 7 · car 13 · phone 4
 ./gradlew assembleRelease                            # keystore.properties 가 없으면 debug 키로 서명(keystore.properties.example)
 ```
 
@@ -57,8 +58,9 @@ python3 tools/mock_car.py --save last.jpg                 # 폰 앱만: FRAME fp
 
 | 항목 | 방법 | 상태 |
 |---|---|---|
-| 메시지 코덱·세션(시계 보정·닫기 전 큐 비우기)·색 변환·조명 값 JSON·최신 값 규칙·공유 상태 JSON | 단위 테스트 31개 | ✅ |
-| 다이얼 단계·클램프, 프리셋 적용·일치·JSON, 조명 ts, 원래 값 JSON | 단위 테스트 13개 | ✅ |
+| 메시지 코덱·세션(시계 보정·닫기 전 큐 비우기, STATE·COMMAND 전달)·색 변환·조명 값 JSON·최신 값 규칙·공유 상태 JSON·프리셋(적용·일치·이름·JSON)·앱 상태·명령 JSON | 단위 테스트 44개 | ✅ |
+| 테마: 차 테마가 계약 id 마다 하나, 모두 어둡고 저채도, 모든 테마(폰 라이트 포함)에서 글자 대비, 조명 값 라벨 | 단위 테스트 7개 | ✅ |
+| 다이얼 단계·클램프, 프리셋의 차 적용(기본은 실내등·독서등 끔, 사용자는 안 건드림), 앱 상태 만들기·받기, 조명 ts, 원래 값 JSON | 단위 테스트 13개 | ✅ |
 | 가상 디스플레이 안 화면 영역 계산(세로·가로·한 변) | 단위 테스트 4개 | ✅ |
 | 차량 앱: 조명 원래 값 읽기(앰비언트 밝기·색·스위치, 실내등, 독서등 4석) | Pleos 에뮬레이터 2.1.0 | ✅ |
 | 차량 앱: 기어 D → **즉시 조명 복원**(0.7초 안에 앰비언트 #ffffff·60 확인) → 약 3초 뒤 종료 | Virtual Console `PUT /vehicle/gear` + `/vehicle/state` | ✅ |
@@ -73,6 +75,8 @@ python3 tools/mock_car.py --save last.jpg                 # 폰 앱만: FRAME fp
 | 플로팅 컨트롤 폭 190dp 고정 | 폰 스크린샷 | ✅ '따뜻하게' 줄바꿈 없음 |
 | **공유 상태 안내**: 카메라 앱 하나 공유 중 HOME → 차 모니터에 "공유한 앱이 폰에서 가려져 있습니다" 오버레이, 카메라 복귀 → 사라짐. 카메라 종료 → 공유 종료 → 차 "폰 화면 공유가 끝났습니다", 폰 알림 "화면 공유가 끝났어요" → 탭 → 바로 동의 화면 | 폰 HOME·`am force-stop com.android.camera2`, 차 UI 덤프, `dumpsys notification` | ✅ 끝남 STATUS 가 소켓이 닫히기 전에 도착 |
 | **디자인 개편**(2026-11-10): 차 패널(이름·연결 상태 알약, 색 견본 + "7000K · 70%" + 느낌 이름, 색 점 달린 프리셋 칩, 트랙이 실제 빛 색인 밝기·색온도 슬라이더, 다이얼 분할 버튼, 풀 라이트 버튼), 모니터 안내(폰 윤곽 + 상태 문장 + 순서 알약), 풀 라이트 안내 알약, 폰 화면(상태 카드 + 큰 시작/중지 버튼, 사용 순서 카드, 조명 카드, 플로팅 행) | Pleos 에뮬레이터(2560×1440·160dpi, 앱 영역에 스크롤 없이 들어감) + 폰 에뮬레이터(1080×2400·420dpi) 스크린샷. 대기 → 데일리 프리셋 → 풀 라이트·복귀 → 전체 화면 공유 → 차 "송출 중"·폰 "차량 연결됨" → 차 '웜 뷰티' 칩 탭 → 폰 3200K·85% '따뜻한 전구색' | ✅ 크래시 없음. 폰 상태 바는 엣지 투 엣지(`enableEdgeToEdge`)로 어두운 배경 위 밝은 아이콘 |
+| **테마**(2026-11-10): 차 블랙·웜 그레이지·네이비(바탕·패널·선의 색조만 다르고 모두 어두움), 폰은 시스템 라이트·다크를 따름(라이트에서 선택 칩은 검은 바탕·흰 글자, 색 점·슬라이더에 어두운 테두리). 차 테마는 다음 실행에도 유지 | 두 에뮬레이터 스크린샷, 폰 `cmd uimode night yes\|no` | ✅ |
+| **앱 상태 양방향**(2026-11-10): 폰에서 테마 네이비·다이얼 색온도·프리셋 '쿨 시네마'·'지금 값 저장' → 차 패널에 반영되고 '내 프리셋 1' 이 양쪽 목록에 뜸(차 로그 `폰 명령 scene.apply`·`scene.save`). 차에서 테마 웜 그레이지·'웜 뷰티'·풀 라이트 켬 → 폰 화면에 반영. 폰에서 풀 라이트 끔 → 차 복귀. 차가 떨어져 있으면 폰의 '차 화면' 구역은 흐리게 잠기고 프리셋은 고르기만 됨 | 같음 + adb 탭·디버그 리시버(`--es theme greige`) | ✅ 에코 없음 |
 | 디버그 리시버(탭 좌표 없이 조명 값·프리셋 변경) | `am broadcast -n …/.DebugReceiver` | ✅ 차 '웜 뷰티' → 85%·3200K·앰비언트 #ffb87b, 폰 3300K·40% → 차 반영. 릴리스 APK 에는 리시버 없음 |
 | fps 단계별 시간(폰 복사·크롭/압축/전송, 차 디코드) | logcat 1초 평균, 폰 에뮬레이터 `-cores 4` | ⚠️ 아래 'fps 측정' 표. 홈 1~2fps(바뀔 때만), 스톱워치 7~8fps, 카메라 프리뷰 4~6fps. 전날의 1fps(복사 0.4~1.6초·압축 0.8~3.3초)는 폰 에뮬레이터가 1코어였기 때문. 에뮬레이터 수치라 실기기에서 다시 읽어야 한다 |
 | 코덱 벤치: 같은 그림을 JPEG q60 과 H.264(`MediaCodec`, 소프트웨어 인코더)로, 540×1200 | 디버그 `CodecBench` 100장 | ✅ 합성 그림: JPEG 인코드 13~15ms·디코드 6ms·94KB, H.264 인코드 32~35ms·디코드 8~9ms·9KB(4Mbps). 카메라 화면: JPEG 8ms·3ms·12KB, H.264 30ms·8ms·1KB. 에뮬레이터엔 하드웨어 인코더가 없다 |

@@ -30,11 +30,16 @@ import androidx.core.app.NotificationCompat
 import com.hdhollow.studio.shared.Hello
 import com.hdhollow.studio.shared.LightingParams
 import com.hdhollow.studio.shared.Protocol
+import com.hdhollow.studio.shared.Scene
+import com.hdhollow.studio.shared.Scenes
 import com.hdhollow.studio.shared.ShareStatus
+import com.hdhollow.studio.shared.StudioCommand
+import com.hdhollow.studio.shared.StudioState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -52,7 +57,7 @@ import kotlin.math.min
  * API 34+ 순서: startForeground(mediaProjection 타입) → getMediaProjection → registerCallback → ImageReader → createVirtualDisplay.
  * 가상 디스플레이는 정사각형(한 변 [Protocol.FRAME_MAX_SIDE]px 이하) 하나를 한 번만 만들고, 그 안에 AUTO_MIRROR 가 가운데 맞춘
  * 폰 화면 영역([MirrorFit])만 잘라 [Protocol.FRAME_MAX_FPS]fps 로 보낸다. 회전해도 가상 디스플레이를 다시 만들거나 resize 하지 않는다.
- * 상태([status])와 조명 값([lighting])은 companion 의 StateFlow 로 액티비티·알림과 공유한다.
+ * 상태([status])와 조명 값([lighting]), 차와 같이 보는 앱 상태([studio])는 companion 의 StateFlow 로 액티비티·알림과 공유한다.
  */
 class MirrorService : Service() {
 
@@ -106,6 +111,7 @@ class MirrorService : Service() {
             onLight = { p -> acceptFromCar(p) }, // 차에서 온 값. 더 최신일 때만 받고, src=car 라 다시 보내지 않는다
             current = { _lighting.value }, // 차가 붙으면 내 값을 보내 어느 쪽이 최신인지 가리게 한다
             status = { ShareStatus(visible = contentVisible) },
+            onState = { s -> _studio.value = s.copy(src = Protocol.ROLE_CAR) }, // 차가 기준이라 그대로 받는다
         )
         scope.launch { link.clients.collect { n -> _status.update { it.copy(clients = n) } } }
         // 폰에서 바뀐 조명 값을 차로. 차에서 온 값(src=car)은 되돌려 보내지 않는다. 플로팅 컨트롤 표시도 갱신
@@ -115,6 +121,9 @@ class MirrorService : Service() {
                 floatingControl.render(p)
             }
         }
+        // 폰에서 바꾼 앱 상태(src=phone)와 프리셋 부탁을 차로. 차에서 온 상태는 되돌려 보내지 않는다
+        scope.launch { studio.collect { s -> if (s.src == Protocol.ROLE_PHONE) link.sendState(s) } }
+        scope.launch { commands.collect { c -> link.sendCommand(c) } }
         // 플로팅 컨트롤(P12): 송출 중이고 켜 달라고 했을 때만. 권한이 없으면 show() 가 아무것도 안 한다
         scope.launch {
             combine(floating, status) { f, s -> f.on && s.running }.collect { on ->
@@ -413,6 +422,35 @@ class MirrorService : Service() {
         private val _lighting = MutableStateFlow(LightingParams(src = Protocol.ROLE_PHONE))
         /** 폰과 차가 공유하는 조명 값. src 가 phone 이면 폰에서 바꾼 것(차로 보냄), car 면 차에서 온 것. */
         val lighting: StateFlow<LightingParams> = _lighting.asStateFlow()
+
+        private val _studio = MutableStateFlow(StudioState())
+        /** 차와 같이 보는 앱 상태(앰비언트 연동·풀 라이트·다이얼 대상·차 테마·사용자 프리셋). 차가 기준이고 폰은 마지막으로 받은 값을 들고 있다. */
+        val studio: StateFlow<StudioState> = _studio.asStateFlow()
+
+        private val commands = MutableSharedFlow<StudioCommand>(extraBufferCapacity = 16)
+
+        /** 차가 붙어 있는가. 앱 상태·프리셋 저장은 그때만 바꿀 수 있다. */
+        val linked: Boolean get() = _status.value.clients > 0
+
+        /** 폰에서 앱 상태를 바꾼다. 차가 붙어 있을 때만(떨어져 있으면 바꿀 대상이 없다). */
+        fun updateStudio(change: (StudioState) -> StudioState) {
+            if (linked) _studio.update { change(it).copy(src = Protocol.ROLE_PHONE) }
+        }
+
+        /** 프리셋 적용. 조명 값은 폰에서 바로 바꾸고(차로 동기화), 차가 붙어 있으면 차 쪽 처리(앰비언트 연동·실내등)도 부탁한다. */
+        fun applyScene(scene: Scene) {
+            updateLighting { Scenes.apply(scene, it) }
+            if (linked) commands.tryEmit(StudioCommand(StudioCommand.SCENE_APPLY, scene.id))
+        }
+
+        /** 지금 값을 새 프리셋으로(차가 저장). */
+        fun saveScene() {
+            if (linked) commands.tryEmit(StudioCommand(StudioCommand.SCENE_SAVE))
+        }
+
+        fun deleteScene(scene: Scene) {
+            if (linked) commands.tryEmit(StudioCommand(StudioCommand.SCENE_DELETE, scene.id))
+        }
 
         fun startIntent(context: Context, resultCode: Int, data: Intent): Intent =
             Intent(context, MirrorService::class.java).setAction(ACTION_START)

@@ -29,7 +29,7 @@ import androidx.compose.ui.unit.dp
 import com.hdhollow.studio.shared.ColorTemp
 import com.hdhollow.studio.shared.LightingParams
 
-/** 둥근 칩. 선택되면 흰 바탕·검은 글자, 삭제 모드는 [danger], 보조 동작은 [outlined]. [leading] 에 색 점을 넣는다. */
+/** 둥근 칩. 선택되면 글자색 바탕에 바탕색 글자(어두운 테마에서는 흰 바탕·검은 글자), 삭제 모드는 [danger], 보조 동작은 [outlined]. [leading] 에 색 점을 넣는다. */
 @Composable
 fun StudioChip(
     text: String,
@@ -68,13 +68,13 @@ fun StudioChip(
     }
 }
 
-/** 작은 색 점. 프리셋 칩 안, 앰비언트 줄 앞에 쓴다. [ring] 은 바탕과 구분되는 테두리(흰 칩 위에서는 어두운 링). */
+/** 작은 색 점. 프리셋 칩 안, 앰비언트 줄 앞에 쓴다. [ring] 은 바탕과 구분되는 테두리. */
 @Composable
-fun ColorDot(color: Color, size: Dp = 14.dp, modifier: Modifier = Modifier, ring: Color = Color.White.copy(alpha = 0.25f)) {
+fun ColorDot(color: Color, size: Dp = 14.dp, modifier: Modifier = Modifier, ring: Color = StudioColors.SwatchRing) {
     Box(modifier.size(size).background(color, CircleShape).border(1.dp, ring, CircleShape))
 }
 
-/** 무드 색 세 개. 고른 색은 흰 링과 틈으로 표시하고, 다시 누르면 푼다(색온도 모드로). */
+/** 무드 색 세 개. 고른 색은 글자색 링과 틈으로 표시하고, 다시 누르면 푼다(색온도 모드로). */
 @Composable
 fun MoodDots(selected: String?, onSelect: (String?) -> Unit, dot: Dp = 40.dp) {
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -86,7 +86,7 @@ fun MoodDots(selected: String?, onSelect: (String?) -> Unit, dot: Dp = 40.dp) {
                     .clip(CircleShape)
                     .semantics { contentDescription = LightLabels.mood(name) }
                     .selectable(on, role = Role.RadioButton) { onSelect(if (on) null else name) }
-                    .border(if (on) 3.dp else 1.dp, if (on) Color.White else Color.White.copy(alpha = 0.25f), CircleShape)
+                    .border(if (on) 3.dp else 1.dp, if (on) StudioColors.Text else StudioColors.SwatchRing, CircleShape)
                     .padding(if (on) 6.dp else 0.dp)
                     .background(c, CircleShape)
             )
@@ -96,7 +96,7 @@ fun MoodDots(selected: String?, onSelect: (String?) -> Unit, dot: Dp = 40.dp) {
 
 /** 둘 이상 중 하나를 고르는 분할 버튼(다이얼 대상 등). */
 @Composable
-fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
+fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
     Row(modifier.clip(RoundedCornerShape(12.dp)).background(StudioColors.SurfaceHigh).padding(4.dp)) {
         options.forEachIndexed { i, label ->
             val on = i == selected
@@ -104,7 +104,7 @@ fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, mod
                 Modifier.weight(1f)
                     .clip(RoundedCornerShape(9.dp))
                     .background(if (on) StudioColors.Text else Color.Transparent)
-                    .selectable(on, role = Role.RadioButton) { onSelect(i) }
+                    .selectable(on, enabled = enabled, role = Role.RadioButton) { onSelect(i) }
                     .padding(vertical = 10.dp),
                 contentAlignment = Alignment.Center,
             ) {
@@ -145,7 +145,7 @@ fun LightReadout(p: LightingParams, modifier: Modifier = Modifier, swatch: Dp = 
             Modifier.size(swatch)
                 .shadow(swatch / 4, CircleShape, ambientColor = color, spotColor = color)
                 .background(color, CircleShape)
-                .border(2.dp, Color.White.copy(alpha = 0.6f), CircleShape)
+                .border(2.dp, StudioColors.SwatchEdge, CircleShape)
         )
         Column {
             Text(LightLabels.summary(p), color = StudioColors.Text, style = MaterialTheme.typography.headlineSmall, maxLines = 1)

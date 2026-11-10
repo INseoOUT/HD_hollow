@@ -40,17 +40,13 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import com.hdhollow.studio.shared.ColorTemp
 import com.hdhollow.studio.shared.LightingParams
-import com.hdhollow.studio.ui.KelvinSlider
-import com.hdhollow.studio.ui.LabelValue
-import com.hdhollow.studio.ui.LevelSlider
-import com.hdhollow.studio.ui.LightLabels
-import com.hdhollow.studio.ui.LightReadout
-import com.hdhollow.studio.ui.MoodDots
+import com.hdhollow.studio.shared.StudioState
+import com.hdhollow.studio.ui.CarScreenSection
+import com.hdhollow.studio.ui.PresetSection
+import com.hdhollow.studio.ui.RingLightSection
 import com.hdhollow.studio.ui.StatusPill
 import com.hdhollow.studio.ui.StepRow
 import com.hdhollow.studio.ui.StudioCard
@@ -58,7 +54,7 @@ import com.hdhollow.studio.ui.StudioColors
 import com.hdhollow.studio.ui.StudioTheme
 
 /**
- * 폰 동반 앱. 화면 공유 동의를 받아 [MirrorService] 를 띄우고, 상태와 조명 조절(P8)을 보여 준다.
+ * 폰 동반 앱. 화면 공유 동의를 받아 [MirrorService] 를 띄우고, 상태와 조명·프리셋·차 화면 상태(차 패널과 같은 구역)를 보여 준다.
  * 촬영은 이 앱이 하지 않는다. 사용자는 기본 카메라·틱톡·유튜브 라이브 앱을 그대로 쓴다.
  */
 class MainActivity : ComponentActivity() {
@@ -75,8 +71,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // targetSdk 35 는 화면 끝까지 그린다. 어두운 테마라 상태 바 아이콘을 밝게
-        enableEdgeToEdge(SystemBarStyle.dark(android.graphics.Color.TRANSPARENT), SystemBarStyle.dark(android.graphics.Color.TRANSPARENT))
+        // targetSdk 35 는 화면 끝까지 그린다. 시스템의 라이트·다크를 따라 상태 바 아이콘 색도 바뀐다
+        val bars = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
+        enableEdgeToEdge(bars, bars)
         MirrorService.init(this) // 마지막 조명 값 불러오기
         handleRestart(intent)
         setContent {
@@ -85,8 +82,9 @@ class MainActivity : ComponentActivity() {
                     val status by MirrorService.status.collectAsState()
                     val lighting by MirrorService.lighting.collectAsState()
                     val floating by MirrorService.floating.collectAsState()
+                    val studio by MirrorService.studio.collectAsState()
                     PhoneScreen(
-                        status, lighting, floating.on,
+                        status, lighting, studio, floating.on,
                         onStart = ::startSharing,
                         onStop = { startService(MirrorService.stopIntent(this)) },
                         onFloating = ::setFloating,
@@ -154,6 +152,7 @@ class MainActivity : ComponentActivity() {
 private fun PhoneScreen(
     status: MirrorService.Status,
     lighting: LightingParams,
+    studio: StudioState,
     floating: Boolean,
     onStart: () -> Unit,
     onStop: () -> Unit,
@@ -174,7 +173,27 @@ private fun PhoneScreen(
 
         ShareCard(status, onStart, onStop)
         if (!status.running) HowToCard()
-        LightingCard(lighting)
+
+        // 아래 세 구역은 차 패널과 같은 컴포넌트·같은 순서다(poc/ui StudioSections)
+        val linked = status.clients > 0
+        RingLightSection(
+            lighting,
+            onLevel = { v -> MirrorService.updateLighting { it.copy(level = v) } },
+            onKelvin = { k -> MirrorService.updateLighting { it.copy(kelvin = k, preset = null) } },
+            onMood = { name -> MirrorService.updateLighting { it.copy(preset = name) } },
+            note = "차와 같은 값",
+        )
+        PresetSection(
+            lighting, studio.userScenes,
+            onApply = MirrorService::applyScene,
+            onSave = MirrorService::saveScene,
+            onDelete = MirrorService::deleteScene,
+            canEdit = linked,
+        )
+        CarScreenSection(
+            studio, onChange = { s -> MirrorService.updateStudio { s } },
+            enabled = linked, note = if (linked) "차와 같은 값" else "차와 연결되면 바꿀 수 있습니다",
+        )
 
         StudioCard(padding = 16.dp) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -239,26 +258,5 @@ private fun HowToCard() {
         StepRow(1, "차와 연결", "USB 또는 같은 네트워크. 차 화면에서 Car Studio 를 엽니다")
         StepRow(2, "화면 공유 시작", "동의 화면에서 \"앱 하나만 공유\"를 고릅니다")
         StepRow(3, "쓰던 카메라·라이브 앱 선택", "그 앱 화면만 차에 뜨고 알림·다른 앱은 보이지 않습니다. 앱을 바꿔 가며 쓸 때만 \"전체 화면\"")
-    }
-}
-
-/** 밝기·색온도·무드 색. 차 다이얼·패널과 같은 값을 공유한다(P8). */
-@Composable
-private fun LightingCard(p: LightingParams) {
-    StudioCard {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("조명", color = StudioColors.TextDim, style = MaterialTheme.typography.titleSmall)
-            Text("차와 같은 값", color = StudioColors.TextFaint, style = MaterialTheme.typography.labelSmall)
-        }
-        LightReadout(p, swatch = 48.dp)
-        LabelValue("밝기", LightLabels.percent(p.level))
-        LevelSlider(p.level, Color(ColorTemp.colorFor(p)), { v -> MirrorService.updateLighting { it.copy(level = v) } }, Modifier.fillMaxWidth())
-        LabelValue("색온도", LightLabels.color(p))
-        KelvinSlider(p.kelvin, { k -> MirrorService.updateLighting { it.copy(kelvin = k, preset = null) } }, Modifier.fillMaxWidth())
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("무드 색", color = StudioColors.TextDim, style = MaterialTheme.typography.bodyMedium)
-            MoodDots(p.preset, { name -> MirrorService.updateLighting { it.copy(preset = name) } })
-        }
-        Text("차 다이얼·패널에서 바꿔도 여기 같이 바뀝니다.", color = StudioColors.TextFaint, style = MaterialTheme.typography.bodySmall)
     }
 }

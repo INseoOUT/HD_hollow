@@ -57,6 +57,7 @@ fun GradientSlider(
                 Modifier.size(THUMB)
                     .shadow(4.dp, CircleShape)
                     .background(Color.White, CircleShape)
+                    .border(1.dp, StudioColors.SwatchRing, CircleShape)
                     .padding(4.dp)
                     .background(thumbColor, CircleShape)
             )
@@ -66,7 +67,7 @@ fun GradientSlider(
                 Modifier.fillMaxWidth().height(TRACK)
                     .clip(shape)
                     .background(Brush.horizontalGradient(colors))
-                    .border(1.dp, Color.White.copy(alpha = 0.12f), shape)
+                    .border(1.dp, StudioColors.SwatchRing, shape)
             )
         },
     )
@@ -78,7 +79,7 @@ fun LevelSlider(level: Float, tint: Color, onChange: (Float) -> Unit, modifier: 
     GradientSlider(
         value = level,
         onValueChange = onChange,
-        colors = listOf(StudioColors.Ink, tint),
+        colors = listOf(StudioPalettes.Black.ink, tint), // 테마와 상관없이 '꺼짐'은 검정
         thumbColor = lerp(Color.Black, tint, level),
         modifier = modifier,
     )

@@ -18,13 +18,13 @@ import androidx.compose.ui.graphics.toArgb
 import com.hdhollow.studio.shared.ColorTemp
 import com.hdhollow.studio.shared.LightingParams
 import com.hdhollow.studio.ui.LightLabels
-import com.hdhollow.studio.ui.StudioColors
+import com.hdhollow.studio.ui.StudioPalettes
 import kotlin.math.abs
 
 /**
  * 다른 앱 위에 뜨는 작은 조절판(P12). 촬영 앱을 쓰는 중에도 밝기·색온도를 바꾼다.
  * SYSTEM_ALERT_WINDOW 권한이 있어야 한다([canDraw]). 전체 화면을 공유하면 차 화면에도 같이 비치므로
- * "앱 하나만 공유"와 함께 쓰라고 안내한다. Compose 는 오버레이 창에 생명주기 소유자가 필요해 일반 View 로 만든다.
+ * "앱 하나만 공유"와 함께 쓰라고 안내한다. 카메라 앱 위에 뜨므로 폰의 라이트·다크와 상관없이 항상 어두운 판이다. Compose 는 오버레이 창에 생명주기 소유자가 필요해 일반 View 로 만든다.
  */
 class FloatingControl(private val context: Context) {
 
@@ -71,7 +71,7 @@ class FloatingControl(private val context: Context) {
     private fun build(params: WindowManager.LayoutParams): View {
         val column = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            background = GradientDrawable().apply { cornerRadius = dp(18).toFloat(); setColor(StudioColors.PanelScrim.toArgb()) }
+            background = GradientDrawable().apply { cornerRadius = dp(18).toFloat(); setColor(StudioPalettes.Black.panelScrim.toArgb()) }
             setPadding(dp(10), dp(8), dp(10), dp(8))
         }
         val head = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
@@ -113,7 +113,7 @@ class FloatingControl(private val context: Context) {
                 setTextColor(Color.WHITE)
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
                 isSingleLine = true
-                background = GradientDrawable().apply { cornerRadius = dp(999).toFloat(); setColor(StudioColors.SurfaceHigh.toArgb()) }
+                background = GradientDrawable().apply { cornerRadius = dp(999).toFloat(); setColor(StudioPalettes.Black.surfaceHigh.toArgb()) }
                 setPadding(dp(12), dp(6), dp(12), dp(6))
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
                     setMargins(dp(2), dp(4), dp(2), 0)

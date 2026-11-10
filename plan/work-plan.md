@@ -51,6 +51,8 @@ type(1B) | length(4B, big-endian) | payload
 | 0x03 | `LIGHT` | 양방향 | JSON `LightingParams` | 아래 표. 받은 값이 내 값보다 최신(`supersedes`)일 때만 적용. `src`가 자기 것이면 무시. 받은 값은 자기 UI에만 반영하고 되돌려 보내지 않는다 |
 | 0x04 | `PING` | 양방향 | 없음 | 5초마다. 15초 무수신이면 끊고, 차가 2초 뒤 재접속 |
 | 0x05 | `STATUS` | 폰 → 차 | JSON `{"v":1,"visible":true,"stopped":false,"reason":null}` | 공유 상태. `visible=false` 는 "앱 하나만 공유"의 그 앱이 가려짐(검은 프레임), `stopped=true` 는 공유 끝남(`reason` "user"\|"projection"). HELLO 를 받을 때 한 번, 바뀔 때마다 보낸다. 세션은 닫기 전에 큐를 300ms 까지 비운다(11/09) |
+| 0x06 | `STATE` | 양방향 | JSON `{"v":1,"ambientLinked":true,"fullLight":false,"dialColor":false,"theme":"black"\|"greige"\|"navy","scenes":[사용자 프리셋],"src":"car"\|"phone"}` | 조명 값 말고 두 앱이 같이 보는 스튜디오 앱 상태(차량 제어 값이 아님). **차가 기준**: 차는 HELLO 를 받으면 한 번, 바뀔 때마다 보낸다. 폰은 사용자가 바꾼 순간에만 보내고 차는 `scenes` 를 뺀 네 값만 받는다. 받은 값은 되돌려 보내지 않는다. 상한 64KB. 모르는 테마는 기본값(11/10) |
+| 0x07 | `COMMAND` | 폰 → 차 | JSON `{"v":1,"cmd":"scene.apply"\|"scene.save"\|"scene.delete","id":프리셋 id\|null}` | 프리셋은 차가 저장하고 실내등·독서등도 차가 다루므로 폰은 부탁만 한다. `scene.apply` 는 차 패널에서 누른 것과 같은 경로(조명 값 + 앰비언트 연동 + 기본 프리셋이면 실내등·독서등 끔). 결과는 LIGHT·STATE 로 돌아온다(11/10) |
 
 `LightingParams`:
 

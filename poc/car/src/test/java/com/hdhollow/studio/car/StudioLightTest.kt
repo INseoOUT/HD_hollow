@@ -42,7 +42,7 @@ class StudioLightTest {
     @Test
     fun `프리셋 적용도 사용자 변경이라 ts 가 찍힌다`() {
         val light = StudioLight(now = { 777L })
-        Scenes.applyLight(Scenes.BUILT_IN[1], light)
+        CarScenes.applyLight(com.hdhollow.studio.shared.Scenes.BUILT_IN[1], light)
         assertEquals(777L, light.ts)
     }
 }

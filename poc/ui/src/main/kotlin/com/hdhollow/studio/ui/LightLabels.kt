@@ -30,4 +30,8 @@ object LightLabels {
         p.kelvin < 7600 -> "푸른기 도는 흰색"
         else -> "차가운 푸른빛"
     }
+
+    /** 다이얼 한 칸이 바꾸는 양. "다이얼 1칸 = 250K" 또는 "다이얼 1칸 = 5%". */
+    fun dialStep(dialColor: Boolean): String =
+        "다이얼 1칸 = " + if (dialColor) "${LightingParams.KELVIN_DIAL_STEP}K" else "${(LightingParams.LEVEL_DIAL_STEP * 100).roundToInt()}%"
 }

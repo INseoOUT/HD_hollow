@@ -40,6 +40,10 @@ import com.android.car.ui.FocusArea
 import com.android.car.ui.FocusParkingView
 import com.hdhollow.studio.shared.LightingParams
 import com.hdhollow.studio.shared.Protocol
+import com.hdhollow.studio.shared.Scene
+import com.hdhollow.studio.shared.StudioCommand
+import com.hdhollow.studio.shared.StudioState
+import com.hdhollow.studio.ui.CarThemes
 import com.hdhollow.studio.ui.StudioColors
 import com.hdhollow.studio.ui.StudioTheme
 import kotlinx.coroutines.FlowPreview
@@ -65,6 +69,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var presets: ScenePresets
     private val exiting = MutableStateFlow(false)
     @Volatile private var lastIncoming: LightingParams? = null // 폰에서 온 마지막 값. 되돌려 보내지 않기 위해
+    @Volatile private var lastIncomingState: StudioState? = null // 폰에서 온 마지막 앱 상태. 같은 이유
 
     @OptIn(FlowPreview::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -125,19 +130,49 @@ class MainActivity : ComponentActivity() {
                 }
         }
 
+        // 차 화면 테마는 다음 실행에도 이어 쓴다(풀 라이트·다이얼 대상·앰비언트 연동은 실행마다 기본값)
+        lightPrefs.getString(KEY_THEME, null)?.takeIf { it in StudioState.THEMES }?.let { light.theme = it }
+        lifecycleScope.launch { snapshotFlow { light.theme }.collect { lightPrefs.edit().putString(KEY_THEME, it).apply() } }
+
+        // 앱 상태(STATE): 차가 기준. 폰이 붙으면 지금 상태를 보내고, 바뀔 때마다 보낸다(폰에서 온 값은 되돌려 보내지 않음)
+        lifecycleScope.launch {
+            val mine = combine(snapshotFlow { light.state(emptyList()) }, presets.user) { s, scenes -> s.copy(userScenes = scenes) }
+            combine(mine, link.connected) { s, c -> s to c }.collect { (s, c) ->
+                if (!c) {
+                    lastIncomingState = null // 다시 붙으면 무조건 한 번 보낸다
+                } else if (lastIncomingState?.sameState(s) != true) {
+                    link.sendState(s)
+                }
+            }
+        }
+        // 폰에서 바꾼 앱 상태. 사용자 프리셋 목록은 차가 기준이라 내 목록을 붙여 비교한다
+        lifecycleScope.launch {
+            link.incomingState.collect { s ->
+                if (s.src == Protocol.ROLE_CAR) return@collect
+                lastIncomingState = s.copy(userScenes = presets.user.value)
+                light.apply(s)
+            }
+        }
+        // 폰의 부탁: 프리셋 적용(실내등·독서등 포함. 패널에서 누른 것과 같은 경로)·저장·삭제
+        lifecycleScope.launch {
+            link.commands.collect { c ->
+                when (c.cmd) {
+                    StudioCommand.SCENE_APPLY -> presets.all.firstOrNull { it.id == c.id }?.let(::applyScene)
+                    StudioCommand.SCENE_SAVE -> presets.saveCurrent(light)
+                    StudioCommand.SCENE_DELETE -> c.id?.let(presets::delete)
+                }
+            }
+        }
+
         // 디버그 빌드의 DebugReceiver(adb 로 조명 값·프리셋 변경)용 고리
         DebugHooks.light = light
         DebugHooks.applyScene = { name ->
-            presets.all.firstOrNull { it.name == name }?.let { scene ->
-                Scenes.applyLight(scene, light)
-                Scenes.applyVehicle(scene, studio.state.value.lighting, studio)
-                true
-            } ?: false
+            presets.all.firstOrNull { it.name == name }?.let { applyScene(it); true } ?: false
         }
 
         val dial = DialTarget(this, onRotate = light::rotate, onPress = { light.dialColor = !light.dialColor })
         val screen = ComposeView(this).apply {
-            setContent { StudioTheme(car = true) { StudioScreen(studio, light, link, presets, exiting) } }
+            setContent { StudioTheme(car = true, palette = CarThemes.palette(light.theme)) { StudioScreen(studio, light, link, presets, exiting) } }
         }
         // RotaryService 요건: 창마다 FocusParkingView(맨 앞, FocusArea 밖) + 포커스 대상은 FocusArea 안.
         // 하나라도 없으면 회전을 버리거나 포커스를 Driving view로 넘긴다
@@ -149,6 +184,11 @@ class MainActivity : ComponentActivity() {
             }, -1, -1)
         })
         dial.requestFocus()
+    }
+
+    private fun applyScene(scene: Scene) {
+        CarScenes.applyLight(scene, light)
+        CarScenes.applyVehicle(scene, studio.state.value.lighting, studio)
     }
 
     override fun onResume() {
@@ -171,6 +211,7 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         private const val KEY_LAST_LIGHT = "last"
+        private const val KEY_THEME = "theme"
     }
 }
 
@@ -210,7 +251,7 @@ private fun StudioScreen(
                 Modifier.fillMaxSize()
                     .padding((8 + 72 * light.level).dp)
                     .clip(RoundedCornerShape(INNER_RADIUS))
-                    .background(Color.Black)
+                    .background(StudioColors.Ink) // 테마의 가장 깊은 바닥
                     .padding(16.dp)
             ) {
                 Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {

@@ -6,8 +6,12 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.Snapshot
 import com.hdhollow.studio.shared.ColorTemp
 import com.hdhollow.studio.shared.LightingParams
+import com.hdhollow.studio.shared.Protocol
+import com.hdhollow.studio.shared.Scene
+import com.hdhollow.studio.shared.StudioState
 import com.hdhollow.studio.ui.LightLabels
 import kotlin.math.roundToInt
 
@@ -52,6 +56,21 @@ class StudioLight(private val now: () -> Long = System::currentTimeMillis) {
     var dialColor by mutableStateOf(false) // 다이얼이 조절하는 대상: false=밝기, true=색온도 (화면 터치·nudge 로 전환)
     var ambientLinked by mutableStateOf(true) // 링라이트 색·밝기를 앰비언트에도 넣는다(패널 토글)
     var fullLight by mutableStateOf(false) // 풀 라이트 모드: 모니터·패널을 숨기고 앱 영역 전체를 조명으로
+    var theme by mutableStateOf(StudioState.THEME_DEFAULT) // 차 화면 테마(실내 마감에 맞춘 어두운 세트)
+
+    /** 폰과 같이 보는 앱 상태(STATE). 사용자 프리셋은 저장소가 따로 들고 있어 받아서 싣는다. */
+    fun state(userScenes: List<Scene>): StudioState = StudioState(
+        ambientLinked = ambientLinked, fullLight = fullLight, dialColor = dialColor, theme = theme,
+        userScenes = userScenes, src = Protocol.ROLE_CAR,
+    )
+
+    /** 폰(또는 패널)에서 바꾼 앱 상태를 받는다. 사용자 프리셋 목록은 차가 기준이라 받지 않는다. 한 스냅샷으로 넣어 중간 값이 새지 않게 한다. */
+    fun apply(s: StudioState) = Snapshot.withMutableSnapshot {
+        ambientLinked = s.ambientLinked
+        fullLight = s.fullLight
+        dialColor = s.dialColor
+        theme = s.theme.takeIf { it in StudioState.THEMES } ?: StudioState.THEME_DEFAULT
+    }
 
     fun rotate(step: Int) {
         if (dialColor) chooseKelvin(LightLogic.stepKelvin(kelvin, step)) else level = LightLogic.stepLevel(level, step)
