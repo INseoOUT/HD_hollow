@@ -20,7 +20,7 @@ import kotlin.coroutines.resume
  * 폰 주소 결정. plan/work-plan.md C14. 순서대로 시도한다.
  *
  * 1. USB 테더링: 차가 폰의 USB 네트워크에 붙어 있으면(TRANSPORT_USB) 그 기본 경로의 게이트웨이가 폰이다.
- * 2. 무선(NSD): 같은 Wi-Fi 또는 폰 핫스팟에서 폰 앱이 광고하는 `_carstudio._tcp` 를 찾는다(2초).
+ * 2. 무선(NSD): 같은 Wi-Fi 또는 폰 핫스팟에서 폰 앱이 광고하는 `_selene._tcp` 를 찾는다(2초).
  * 3. 데모 고정값: 폰 USB → Mac(`adb forward tcp:8080 tcp:8080`) → 에뮬레이터에서 본 Mac(10.0.2.2).
  *
  * ponytail: 실차에서 1·2 중 무엇이 되는지는 Pleos 확인 전까지 모른다. 3 은 에뮬레이터 전용 폴백.

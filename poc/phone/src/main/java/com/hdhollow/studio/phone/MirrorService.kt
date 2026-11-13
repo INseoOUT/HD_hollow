@@ -135,7 +135,7 @@ class MirrorService : Service() {
     private val floatingControl by lazy { FloatingControl(this) }
     private var nsdListener: NsdManager.RegistrationListener? = null
 
-    /** 무선 모드(P14): 같은 Wi-Fi·핫스팟의 차가 찾을 수 있게 `_carstudio._tcp` 를 광고한다. */
+    /** 무선 모드(P14): 같은 Wi-Fi·핫스팟의 차가 찾을 수 있게 `_selene._tcp` 를 광고한다. */
     private fun advertise() {
         val nsd = getSystemService(NsdManager::class.java) ?: return
         val info = NsdServiceInfo().apply {
@@ -237,7 +237,7 @@ class MirrorService : Service() {
         r.setOnImageAvailableListener({ onImage(it) }, handler)
         reader = r
         display = p.createVirtualDisplay(
-            "CarStudio", side, side, m.densityDpi, DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, r.surface, null, handler
+            "Selene", side, side, m.densityDpi, DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, r.surface, null, handler
         )
         refreshContent()
         Log.d(TAG, "캡처 ${side}x${side} @${m.densityDpi}dpi")
@@ -357,7 +357,7 @@ class MirrorService : Service() {
         return NotificationCompat.Builder(this, CHANNEL)
             .setSmallIcon(android.R.drawable.ic_menu_camera)
             .setContentTitle("차량으로 화면 송출 중")
-            .setContentText("Car Studio 가 폰 화면을 차 화면에 보여 줍니다")
+            .setContentText("Selene 가 폰 화면을 차 화면에 보여 줍니다")
             .setOngoing(true)
             .setContentIntent(open)
             .addAction(0, "따뜻하게", servicePending(ACTION_WARMER, 2))

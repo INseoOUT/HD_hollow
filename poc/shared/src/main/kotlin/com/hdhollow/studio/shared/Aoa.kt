@@ -7,8 +7,8 @@ package com.hdhollow.studio.shared
  */
 object Aoa {
     const val MANUFACTURER = "HDhollow"
-    const val MODEL = "CarStudio"
-    const val DESCRIPTION = "Car Studio phone link"
+    const val MODEL = "Selene"
+    const val DESCRIPTION = "Selene phone link"
     const val VERSION = "1"
     const val URI = "https://github.com/INseoOUT/HD_hollow"
     const val SERIAL = "0001"

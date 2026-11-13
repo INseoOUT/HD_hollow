@@ -180,7 +180,7 @@ object CodecBench {
             c.drawRect(x, y, x + rnd.nextInt(10, 120), y + rnd.nextInt(10, 120), p)
         }
         p.color = Color.WHITE; p.textSize = 48f
-        repeat(20) { c.drawText("Car Studio 벤치 $it", 20f, 80f + it * 56f, p) }
+        repeat(20) { c.drawText("Selene 벤치 $it", 20f, 80f + it * 56f, p) }
         return b
     }
 

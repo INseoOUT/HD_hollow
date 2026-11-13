@@ -167,7 +167,7 @@ private fun PhoneScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("Car Studio", color = StudioColors.Text, style = MaterialTheme.typography.headlineMedium)
+            Text("Selene", color = StudioColors.Text, style = MaterialTheme.typography.headlineMedium)
             Text("폰 화면은 차 화면으로, 차 조명은 스튜디오 조명으로", color = StudioColors.TextDim, style = MaterialTheme.typography.bodyMedium)
         }
 
@@ -255,7 +255,7 @@ private fun ShareCard(status: MirrorService.Status, onStart: () -> Unit, onStop:
 private fun HowToCard() {
     StudioCard {
         Text("이렇게 쓰세요", color = StudioColors.TextDim, style = MaterialTheme.typography.titleSmall)
-        StepRow(1, "차와 연결", "USB 또는 같은 네트워크. 차 화면에서 Car Studio 를 엽니다")
+        StepRow(1, "차와 연결", "USB 또는 같은 네트워크. 차 화면에서 Selene 를 엽니다")
         StepRow(2, "화면 공유 시작", "동의 화면에서 \"앱 하나만 공유\"를 고릅니다")
         StepRow(3, "쓰던 카메라·라이브 앱 선택", "그 앱 화면만 차에 뜨고 알림·다른 앱은 보이지 않습니다. 앱을 바꿔 가며 쓸 때만 \"전체 화면\"")
     }

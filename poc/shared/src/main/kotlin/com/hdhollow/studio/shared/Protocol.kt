@@ -33,8 +33,8 @@ object Protocol {
     const val FRAME_MAX_FPS = 15
 
     /** 무선 모드(2차)에서 폰이 광고하고 차가 찾는 NSD 서비스 타입. */
-    const val NSD_SERVICE_TYPE = "_carstudio._tcp."
-    const val NSD_SERVICE_NAME = "Car Studio"
+    const val NSD_SERVICE_TYPE = "_selene._tcp."
+    const val NSD_SERVICE_NAME = "Selene"
 
     const val ROLE_PHONE = "phone"
     const val ROLE_CAR = "car"

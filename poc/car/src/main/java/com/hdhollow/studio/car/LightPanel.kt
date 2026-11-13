@@ -60,7 +60,7 @@ fun LightPanel(
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("CAR STUDIO", color = StudioColors.TextDim, style = MaterialTheme.typography.labelMedium, letterSpacing = 2.sp)
+            Text("SELENE", color = StudioColors.TextDim, style = MaterialTheme.typography.labelMedium, letterSpacing = 2.sp)
             StatusPill(
                 text = when { streaming -> "송출 중"; connected -> "폰 연결됨"; else -> "폰 대기 중" },
                 dot = if (connected || streaming) StudioColors.Ok else StudioColors.TextFaint,

@@ -21,5 +21,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "CarStudioPoc"
+rootProject.name = "Selene"
 include(":shared", ":ui", ":car", ":phone")

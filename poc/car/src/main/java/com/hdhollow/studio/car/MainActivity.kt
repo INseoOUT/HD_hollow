@@ -270,8 +270,8 @@ private fun StudioScreen(
                             val stopped = share?.stopped == true
                             val (title, body) = when {
                                 stopped -> "폰 화면 공유가 끝났습니다" to "폰에서 '화면 공유 시작'을 다시 눌러 주세요"
-                                connected -> "폰 화면을 기다리는 중" to "폰의 Car Studio 에서 화면 공유를 시작해 주세요"
-                                else -> "폰 연결 대기 중" to "폰을 연결하고 Car Studio 에서 화면 공유를 시작해 주세요"
+                                connected -> "폰 화면을 기다리는 중" to "폰의 Selene 에서 화면 공유를 시작해 주세요"
+                                else -> "폰 연결 대기 중" to "폰을 연결하고 Selene 에서 화면 공유를 시작해 주세요"
                             }
                             MonitorPlaceholder(title, body, steps = !connected && !stopped)
                         }

@@ -13,7 +13,7 @@
     <uses-feature android:name="android.hardware.usb.host" android:required="false" />
 
     <application
-        android:label="Car Studio"
+        android:label="Selene"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
         <activity
             android:name=".MainActivity"
