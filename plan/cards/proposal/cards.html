@@ -1,0 +1,410 @@
+<!doctype html>
+<!--
+  기획서 카드뉴스 (1080×1350, 14장) — 접수양식 02 섹션 1~6번을 카드로 옮긴 참고자료
+  작성일: 2026-11-11 · 앱명 반영: 2026-11-12
+  근거: plan/submission-draft.md 1절(본문), poc/verification.md(확인 결과). 화면은 두 에뮬레이터에서 찍은 것(shots/):
+    앱 이름이 보이는 화면은 2026-11-12 에 Selene 로 다시 찍었고, 풀 라이트·기어 D·폰 리모컨은 2026-11-11 그대로다(이름이 안 보인다)
+  상태: 초안. 앱명은 Selene(셀레네)로 정했다. 가정값(MAU·리텐션)이 정해지면 13번을 고쳐 다시 찍는다.
+  읽는 사람: 심사위원. 팀명·실명·연락처·계정을 넣지 않는다.
+  색은 poc/ui StudioTheme 의 차 '블랙' 세트. 채도 있는 색은 조명 색과 상태 표시에만 쓴다. 표지의 초승달은 이름의 모티프(달)다.
+  다시 만들기: Chrome 헤드리스로 카드마다 ?n=1..14 를 찍는다.
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --hide-scrollbars \
+      --force-device-scale-factor=1 --window-size=1080,1350 --screenshot=01-cover.png "file://$PWD/cards.html?n=1"
+  PDF: 같은 명령에 --no-pdf-header-footer --print-to-pdf=proposal-cards.pdf "file://$PWD/cards.html"
+-->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>Selene 기획서 카드뉴스</title>
+<style>
+:root{
+  --ink:#0B0B0C; --surface:#151516; --surface-high:#202022; --line:#2E2E31;
+  --text:#F4F5F7; --body:#D9DBE0; --dim:#9E9FA3; --faint:#6A6B6F;
+  --ok:#5BE49B; --warn:#FFC56B;
+  --light:#EEF3FF; --glow:178,203,255; /* 7000K */
+  --kr:"Apple SD Gothic Neo","Pretendard","Noto Sans KR",sans-serif;
+  --en:"Avenir Next","Helvetica Neue","Apple SD Gothic Neo",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+@page{size:1080px 1350px;margin:0}
+html,body{background:#000}
+body{font-family:var(--kr);color:var(--text);word-break:keep-all;-webkit-font-smoothing:antialiased;-webkit-print-color-adjust:exact;print-color-adjust:exact;display:flex;flex-direction:column;gap:40px}
+@media print{body{gap:0}}
+img{display:block}
+
+.card{width:1080px;height:1350px;position:relative;overflow:hidden;background:var(--ink);padding:64px 76px;display:flex;flex-direction:column;break-after:page;break-inside:avoid}
+.card>*{position:relative}
+
+.top{display:flex;justify-content:space-between;align-items:center;height:52px;flex:none}
+.chip{border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:0 24px 0 8px;height:52px;display:inline-flex;align-items:center;gap:12px;font-size:26px;font-weight:600}
+.chip i{font-style:normal;font-family:var(--en);font-weight:700;font-size:24px;width:36px;height:36px;border-radius:50%;background:var(--light);color:var(--ink);display:grid;place-items:center}
+.ctx{font-size:26px;color:var(--dim);font-weight:500}
+.pg{font-family:var(--en);font-weight:500;font-size:26px;color:var(--faint);font-variant-numeric:tabular-nums;letter-spacing:.04em}
+
+h1{font-size:54px;line-height:1.26;font-weight:800;letter-spacing:-.03em}
+h2{font-size:60px;line-height:1.24;font-weight:800;letter-spacing:-.03em;margin-top:30px;text-wrap:balance}
+.sub{font-size:32px;line-height:1.52;color:var(--dim);margin-top:18px;font-weight:500;text-wrap:pretty}
+.lbl{font-size:28px;font-weight:700;color:var(--dim);margin-top:44px}
+.fill{flex:1;min-height:0}
+
+/* 화면 */
+.shot{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;margin-top:28px}
+.shot img{max-width:100%;max-height:100%;width:auto;height:auto;border-radius:22px}
+.glow::before{content:"";position:absolute;left:50%;top:50%;width:1100px;height:900px;transform:translate(-50%,-50%);border-radius:50%;pointer-events:none;
+  background:radial-gradient(closest-side,rgba(var(--glow),.22),rgba(var(--glow),.08) 52%,transparent)}
+.glow img{position:relative}
+.cap{font-size:23px;line-height:1.45;color:var(--faint);margin-top:12px;text-align:center;flex:none}
+
+/* 표지 */
+.title{font-family:var(--en);font-weight:700;font-size:118px;line-height:1.06;letter-spacing:-.025em;display:flex;align-items:baseline;gap:26px;white-space:nowrap;margin-top:30px}
+.title small{font-family:var(--kr);font-size:42px;font-weight:500;color:var(--dim);letter-spacing:0}
+.title i{flex:none;width:80px;height:80px;border-radius:50%;box-shadow:inset 23px -9px 0 0 var(--light);filter:drop-shadow(0 0 16px rgba(var(--glow),.55));transform:rotate(-18deg)}
+.one{font-size:29px;line-height:1.55;color:var(--body);margin-top:20px;text-wrap:pretty}
+.one b{display:block;font-size:23px;color:var(--faint);font-weight:600;margin-bottom:6px}
+
+/* 행 목록 */
+.rows{list-style:none;margin-top:28px;border-top:1.5px solid var(--line);flex:none}
+.rows li{display:grid;grid-template-columns:var(--w,218px) 1fr;column-gap:22px;align-items:baseline;padding:19px 0;border-bottom:1.5px solid var(--line)}
+.rows b{font-size:29px;font-weight:700;line-height:1.45}
+.rows span{font-size:29px;line-height:1.5;color:var(--body);text-wrap:pretty}
+.rows em{font-style:normal;font-family:var(--en);font-weight:600;color:var(--text)}
+.rows.stack li{display:block}
+.rows.stack b{display:block;margin-bottom:4px}
+
+/* 기다리는 시간 */
+.moments{list-style:none;margin-top:18px;display:flex;flex-direction:column;gap:16px;flex:1;min-height:0}
+.moments li{flex:1;display:grid;grid-template-columns:392px 1fr;align-items:center;background:var(--surface);border:1.5px solid var(--line);border-radius:28px;padding:0 40px}
+.moments b{font-family:var(--en);font-size:84px;font-weight:700;letter-spacing:-.03em;line-height:1.1}
+.moments b small{font-family:var(--kr);font-size:40px;font-weight:800;margin-left:6px;letter-spacing:0}
+.moments b.kr{font-family:var(--kr);font-size:62px;font-weight:800}
+.moments span{font-size:33px;line-height:1.45;color:var(--body)}
+
+/* 번호 목록 */
+.nums{list-style:none;margin-top:34px;display:flex;flex-direction:column;flex:1;justify-content:space-between}
+.nums li{display:grid;grid-template-columns:86px 1fr;padding:26px 0;border-top:1.5px solid var(--line)}
+.nums i{font-style:normal;font-family:var(--en);font-weight:700;font-size:44px;color:var(--faint);line-height:1.1}
+.nums b{display:block;font-size:42px;font-weight:800;letter-spacing:-.02em}
+.nums span{display:block;font-size:31px;line-height:1.5;color:var(--dim);margin-top:10px;text-wrap:pretty}
+
+/* 차 부품 → 스튜디오 */
+.map{list-style:none;margin-top:34px;display:flex;flex-direction:column;gap:14px}
+.map li{display:grid;grid-template-columns:1fr 64px 1fr;align-items:center;background:var(--surface);border:1.5px solid var(--line);border-radius:24px;padding:26px 30px}
+.map b{font-size:32px;font-weight:700;line-height:1.35}
+.map i{font-style:normal;font-family:var(--en);font-size:34px;color:var(--faint);text-align:center}
+.map span{font-size:32px;font-weight:700;line-height:1.35;color:var(--light);text-shadow:0 0 22px rgba(var(--glow),.55)}
+.map small{display:block;font-size:24px;font-weight:500;color:var(--dim);margin-top:4px;text-shadow:none}
+.panel{background:var(--surface);border:1.5px solid var(--line);border-radius:24px;padding:28px 32px;font-size:29px;line-height:1.55;color:var(--body);text-wrap:pretty}
+.panel b{color:var(--text)}
+
+/* 구성 */
+.box{background:var(--surface);border:1.5px solid var(--line);border-radius:26px;padding:28px 34px}
+.box.lit{border-color:rgba(var(--glow),.55);box-shadow:0 0 44px rgba(var(--glow),.2)}
+.box h4{font-size:34px;font-weight:800;display:flex;align-items:baseline;gap:14px}
+.box h4 em{font-style:normal;font-family:var(--en);font-size:24px;font-weight:600;color:var(--dim)}
+.box dl{display:grid;grid-template-columns:268px 1fr;row-gap:10px;margin-top:16px;font-size:29px;line-height:1.45}
+.box dt{font-weight:700}
+.box dd{color:var(--body)}
+.link{display:flex;justify-content:center;gap:56px;padding:16px 0;font-size:26px;color:var(--dim);font-weight:600}
+.link span{display:inline-flex;align-items:center;gap:12px}
+.link i{font-style:normal;font-family:var(--en);font-size:34px;color:var(--light);text-shadow:0 0 18px rgba(var(--glow),.7)}
+.tags{display:flex;flex-wrap:wrap;gap:12px}
+.tags span{font-size:26px;font-weight:600;height:54px;padding:0 24px;border-radius:999px;border:1.5px solid var(--line);background:var(--surface);display:inline-flex;align-items:center}
+
+/* 화면 세 장 */
+.trio{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:30px;flex:none}
+.trio img{width:100%;border-radius:14px}
+.trio figcaption{font-size:24px;color:var(--dim);margin-top:10px;text-align:center;font-weight:600}
+
+/* 폰 + 설명 */
+.split{display:grid;grid-template-columns:372px 1fr;column-gap:40px;margin-top:34px;flex:1;min-height:0;align-items:start}
+.phone div{width:372px;height:746px;overflow:hidden;border-radius:30px;border:2px solid #3D3F46}
+.phone img{width:100%;margin-top:-52px}
+.split .rows li{padding:24px 0}
+.split .rows span{font-size:30px}
+
+/* 순서 */
+.steps{list-style:none;margin-top:28px;counter-reset:s;display:flex;flex-direction:column;flex:1;justify-content:space-between}
+.steps li{counter-increment:s;display:grid;grid-template-columns:70px 1fr;align-items:start;font-size:30px;line-height:1.5;color:var(--body);text-wrap:pretty}
+.steps li::before{content:counter(s);font-family:var(--en);font-weight:700;font-size:24px;width:44px;height:44px;border-radius:50%;border:1.5px solid var(--line);background:var(--surface);color:var(--text);display:grid;place-items:center;margin-top:1px}
+.steps b{color:var(--text);font-weight:700}
+
+/* 확인 목록 */
+.stat{display:flex;align-items:baseline;gap:18px;margin-top:30px}
+.stat b{font-family:var(--en);font-size:92px;font-weight:700;letter-spacing:-.03em;line-height:1}
+.stat span{font-size:30px;color:var(--dim);font-weight:600}
+.chk{list-style:none;margin-top:6px}
+.chk li{position:relative;padding-left:42px;font-size:30px;line-height:1.5;margin-top:16px;color:var(--body);text-wrap:pretty}
+.chk li b{color:var(--text);font-weight:700}
+.chk li::before{content:"";position:absolute;left:2px;top:.4em;width:20px;height:20px;border-radius:50%}
+.chk.ok li::before{background:var(--ok)}
+.chk.todo li::before{border:2.5px solid var(--faint)}
+.plan{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:16px}
+.plan div{background:var(--surface);border:1.5px solid var(--line);border-radius:20px;padding:20px 22px}
+.plan b{display:block;font-family:var(--en);font-size:25px;font-weight:700}
+.plan span{display:block;font-size:24px;line-height:1.45;color:var(--dim);margin-top:6px}
+
+/* 퍼널 */
+.funnel{display:grid;grid-template-columns:1fr 34px 1fr 34px 1fr 34px 1fr;align-items:stretch;margin-top:16px}
+.funnel div{background:var(--surface);border:1.5px solid var(--line);border-radius:20px;padding:20px 12px;text-align:center}
+.funnel div.out{background:var(--light);border-color:var(--light);color:var(--ink)}
+.funnel b{display:block;font-family:var(--en);font-size:42px;font-weight:700;letter-spacing:-.02em;line-height:1.15}
+.funnel b small{font-family:var(--kr);font-size:26px;font-weight:700}
+.funnel span{display:block;font-size:22px;color:var(--dim);margin-top:6px;font-weight:600}
+.funnel .out span{color:#4A4D57}
+.funnel i{font-style:normal;font-family:var(--en);font-size:30px;color:var(--faint);display:grid;place-items:center}
+.small{font-size:24px;line-height:1.5;color:var(--faint);margin-top:12px;text-wrap:pretty}
+.close{font-size:44px;line-height:1.36;font-weight:800;letter-spacing:-.02em;text-wrap:balance;border-top:1.5px solid var(--line);padding-top:34px}
+</style>
+</head>
+<body>
+
+<!-- 1 표지 -->
+<section class="card">
+  <div class="top"><span class="ctx">현대자동차그룹 차량용 앱 개발 공모전</span><span class="pg"></span></div>
+  <div class="shot glow"><img src="shots/studio-daily.png" alt=""></div>
+  <div class="title"><i></i><span>Selene</span><small>셀레네</small></div>
+  <h1 style="margin-top:14px">주차한 차가 1인 스튜디오가 됩니다</h1>
+  <p class="one"><b>앱 한 줄 소개</b>주차된 차의 디스플레이와 실내 조명을 스튜디오 조명으로, 거치한 폰의 화면을 모니터로, 다이얼을 컨트롤러로 묶어, 쓰던 카메라·라이브 앱 그대로 차 안에서 촬영하게 하는 앱</p>
+  <p class="one"><b>이름의 뜻</b>셀레네는 그리스 신화에서 밤마다 마차를 몰아 세상을 비추는 달의 여신입니다. 크리에이터는 흔히 스스로 빛나는 별에 비유됩니다. Selene는 반대로, 그 곁에서 사용자를 늘 비춰 주는 달빛이 되려 합니다.</p>
+</section>
+
+<!-- 2 기획 배경 ① -->
+<section class="card">
+  <div class="top"><span class="chip"><i>2</i>기획 배경</span><span class="pg"></span></div>
+  <h2>차 안은 이미 사진과 영상을 찍는 곳입니다</h2>
+  <p class="sub">창으로 들어오는 빛과 혼자 있을 수 있는 공간 덕분에, 차에서 찍은 셀카·브이로그·라이브·영상통화는 흔한 장면이 됐습니다.</p>
+  <h3 class="lbl">차에 앉아 기다리는 시간은 반복해서 생깁니다</h3>
+  <ul class="moments">
+    <li><b>20~40<small>분</small></b><span>전기차를 충전하며 기다리는 시간</span></li>
+    <li><b class="kr">픽업 대기</b><span>아이 학원 앞에서 기다리는 시간</span></li>
+    <li><b class="kr">출근 전</b><span>주차장에서 하는 외모 점검과 화상회의</span></li>
+  </ul>
+</section>
+
+<!-- 3 기획 배경 ② -->
+<section class="card">
+  <div class="top"><span class="chip"><i>2</i>기획 배경</span><span class="pg"></span></div>
+  <h2>그 시간에 차는 스튜디오로서 네 가지가 불편합니다</h2>
+  <ol class="nums">
+    <li><i>1</i><div><b>조명이 없다</b><span>밤, 지하주차장, 비 오는 날에는 빛이 없습니다. 실내등은 머리 위에서 내려와 눈 밑에 그림자를 만들고 색도 누렇습니다.</span></div></li>
+    <li><i>2</i><div><b>보면서 찍을 수 없다</b><span>거치대에 둔 폰은 화면이 작고 멀어서 구도·표정·라이브 댓글을 확인하기 어렵습니다.</span></div></li>
+    <li><i>3</i><div><b>조절하려면 폰을 만져야 한다</b><span>밝기를 바꿀 때마다 폰을 건드리면 맞춰 둔 구도가 틀어집니다.</span></div></li>
+    <li><i>4</i><div><b>장비를 들고 다니지 않는다</b><span>휴대용 링라이트와 모니터는 차에 두고 다닐 물건이 아닙니다.</span></div></li>
+  </ol>
+</section>
+
+<!-- 4 기획 배경 ③ -->
+<section class="card">
+  <div class="top"><span class="chip"><i>2</i>기획 배경</span><span class="pg"></span></div>
+  <h2>그런데 차는 스튜디오의 부품을 이미 갖고 있습니다</h2>
+  <ul class="map">
+    <li><b>넓은 중앙 디스플레이<small>얼굴 정면 높이</small></b><i>→</i><span>면광원<small>얼굴을 비추는 주조명</small></span></li>
+    <li><b>앰비언트 라이트<small>실내등·독서등</small></b><i>→</i><span>배경광·보조광<small>색을 바꿀 수 있는 빛</small></span></li>
+    <li><b>다이얼<small>손을 떼지 않고 돌림</small></b><i>→</i><span>컨트롤러<small>화면을 보지 않고 조절</small></span></li>
+    <li><b>닫힌 실내<small>혼자 있는 공간</small></b><i>→</i><span>촬영 공간<small>남의 시선이 없는 곳</small></span></li>
+  </ul>
+  <div class="fill"></div>
+  <p class="panel"><b>모바일 앱만으로는 만들 수 없는 조합입니다.</b> 폰은 카메라가 되는 순간 자기 화면을 조명으로 쓸 수 없고, 앰비언트·실내등·다이얼은 차에만 있습니다. 카메라와 촬영 앱은 사용자가 이미 갖고 있습니다. 필요한 것은 차의 부품을 ‘촬영’이라는 한 가지 용도로 묶는 앱입니다.</p>
+</section>
+
+<!-- 5 구성 -->
+<section class="card">
+  <div class="top"><span class="chip"><i>3</i>주요 기능 · 차량 특화 요소</span><span class="pg"></span></div>
+  <h2>차량 앱과 폰 동반 앱이 하나의 스튜디오가 됩니다</h2>
+  <p class="sub">촬영·저장·라이브 송출은 쓰던 폰 앱(기본 카메라, 틱톡, 유튜브 라이브, 화상회의)이 그대로 합니다.</p>
+  <div class="fill"></div>
+  <div class="box">
+    <h4>폰</h4>
+    <dl>
+      <dt>쓰던 촬영 앱</dt><dd>촬영, 저장, 라이브 송출</dd>
+      <dt>동반 앱(백그라운드)</dt><dd>폰 화면 송출, 조명 리모컨</dd>
+    </dl>
+  </div>
+  <div class="link"><span><i>↓</i>폰 화면</span><span><i>↕</i>조명 값·앱 상태</span></div>
+  <div class="box lit">
+    <h4>차 <em>Pleos Connect</em></h4>
+    <dl>
+      <dt>조명</dt><dd>링라이트와 앰비언트·실내등·독서등</dd>
+      <dt>모니터</dt><dd>폰 화면을 차 화면 가운데에 크게</dd>
+      <dt>조작</dt><dd>다이얼, 터치 패널</dd>
+    </dl>
+  </div>
+  <div class="fill"></div>
+  <div class="tags"><span>서버 없음</span><span>저장 없음</span><span>위치 수집 없음</span><span>정차(P·N) 전용</span></div>
+</section>
+
+<!-- 6 기능 ① 조명 -->
+<section class="card">
+  <div class="top"><span class="chip"><i>3</i>주요 기능 ① 조명</span><span class="pg"></span></div>
+  <h2>차 화면과 실내 조명이 스튜디오 조명이 됩니다</h2>
+  <div class="trio">
+    <figure><img src="shots/studio-daily.png" alt=""><figcaption>데일리 · 7000K</figcaption></figure>
+    <figure><img src="shots/studio-warm.png" alt=""><figcaption>웜 뷰티 · 3200K</figcaption></figure>
+    <figure><img src="shots/studio-neon.png" alt=""><figcaption>네온 · 무드 색</figcaption></figure>
+  </div>
+  <ul class="rows" style="--w:206px">
+    <li><b>링라이트</b><span>앱 가장자리가 발광 테두리가 됩니다. 색온도 2700K~8000K, 기본은 푸른기 도는 흰색(7000K)</span></li>
+    <li><b>무드 색</b><span>색상환이나 색 코드(#RRGGBB)로 원하는 색을 고릅니다</span></li>
+    <li><b>차량 조명 연동</b><span>같은 색과 밝기를 앰비언트 라이트에 넣어 배경 톤을 맞춥니다 <em>Vehicle SDK Light</em></span></li>
+    <li><b>프리셋</b><span>링라이트·앰비언트·실내등·독서등 조합을 한 번에 고르고, 지금 값을 내 프리셋으로 저장합니다</span></li>
+    <li><b>풀 라이트</b><span>모니터와 패널을 숨기고 화면 전체를 조명으로 씁니다</span></li>
+  </ul>
+  <div class="fill"></div>
+  <p class="cap" style="text-align:left">위 화면은 Pleos Connect 에뮬레이터 2.1.0에서 찍은 실제 앱 화면입니다.</p>
+</section>
+
+<!-- 7 기능 ② 모니터 -->
+<section class="card">
+  <div class="top"><span class="chip"><i>3</i>주요 기능 ② 모니터</span><span class="pg"></span></div>
+  <h2>차 화면이 리턴 모니터가 됩니다</h2>
+  <div class="shot"><img src="shots/studio-daily.png" alt=""></div>
+  <p class="cap">Pleos Connect 에뮬레이터 화면. 가운데는 폰 에뮬레이터 카메라 앱의 가상 장면입니다.</p>
+  <ul class="rows" style="--w:206px;margin-top:18px">
+    <li><b>폰 화면 미러링</b><span>카메라 미리보기, 라이브 댓글, 회의 화면을 차 화면 가운데에 크게 띄웁니다</span></li>
+    <li><b>자동 연결</b><span>차에서 앱만 열면 폰을 찾아 붙고, 끊기면 다시 붙습니다</span></li>
+    <li><b>촬영 앱만 공유</b><span>고른 촬영 앱 화면만 차에 보이고 알림이나 다른 앱은 뜨지 않습니다</span></li>
+    <li><b>공유 상태 안내</b><span>공유한 앱이 가려지거나 공유가 끝나면 이유와 해결 방법을 차 화면에 띄웁니다</span></li>
+  </ul>
+</section>
+
+<!-- 8 기능 ③ 조작 -->
+<section class="card">
+  <div class="top"><span class="chip"><i>3</i>주요 기능 ③ 조작</span><span class="pg"></span></div>
+  <h2>폰과 구도를 건드리지 않고 조절합니다</h2>
+  <div class="split">
+    <figure class="phone"><div><img src="shots/phone-remote.png" alt=""></div><figcaption class="cap">폰 동반 앱의 조명 리모컨<br>(폰 에뮬레이터 화면 일부)</figcaption></figure>
+    <ul class="rows stack" style="margin-top:0">
+      <li><b>다이얼</b><span>돌려서 밝기(1칸 5%)나 색온도(1칸 250K)를 바꿉니다. 화면을 보지 않고 돌립니다</span></li>
+      <li><b>차 화면 패널</b><span>밝기 슬라이더, 색상환, 프리셋, 앰비언트 연동, 풀 라이트를 터치로 조절합니다</span></li>
+      <li><b>폰 리모컨</b><span>차 패널과 같은 구역이 폰 앱에 있습니다. 촬영 중에는 알림 버튼과 촬영 앱 위의 작은 조절판으로 바꿉니다</span></li>
+      <li><b>값 동기화</b><span>어느 쪽에서 바꿔도 링라이트·앰비언트·상대 화면에 함께 반영되고, 마지막 설정은 다음 실행에 이어집니다</span></li>
+    </ul>
+  </div>
+</section>
+
+<!-- 9 기능 ④ 규칙 -->
+<section class="card">
+  <div class="top"><span class="chip"><i>3</i>주요 기능 ④ 차를 지키는 규칙</span><span class="pg"></span></div>
+  <h2>세워 둔 차에서만 쓰고, 끝나면 차를 원래대로 돌려놓습니다</h2>
+  <div class="shot"><img src="shots/gear-drive.png" alt=""></div>
+  <p class="cap">기어를 D로 바꾼 직후의 에뮬레이터 화면. 앱은 조명을 원래 값으로 되돌리고 종료합니다.</p>
+  <ul class="rows" style="--w:206px;margin-top:18px">
+    <li><b>정차 전용</b><span>기어 P·N에서만 동작합니다. D·R로 바뀌면 경고 뒤 종료하고, 주행 기어에서 실행하면 조명을 켜지 않습니다</span></li>
+    <li><b>원래대로 복원</b><span>시작할 때 조명의 원래 값을 읽어 두고 종료할 때 되돌립니다. 비정상 종료 뒤에도 다음 실행이 되돌립니다</span></li>
+    <li><b>저장·전송 없음</b><span>폰 화면은 폰→차 연결 구간에서만 흐릅니다. 서버·저장·위치 수집이 없습니다</span></li>
+  </ul>
+</section>
+
+<!-- 10 시나리오 -->
+<section class="card">
+  <div class="top"><span class="chip"><i>4</i>주요 사용 시나리오</span><span class="pg"></span></div>
+  <h2>충전을 기다리는 30분, 차에서 라이브 방송을 합니다</h2>
+  <p class="sub">20대 후반 직장인. 전기차로 출퇴근하고 주 1~2회 공용 충전소에서 30분을 기다립니다.</p>
+  <ol class="steps">
+    <li><span>충전 케이블을 꽂고 기어는 P. <b>차에서 앱을 열면</b> 스튜디오 화면이 열리고 조명의 원래 값을 읽어 둡니다.</span></li>
+    <li><span>폰을 거치대에 올리고 <b>Selene에서 화면 공유를 시작</b>합니다. ‘앱 하나만 공유’로 틱톡을 고릅니다.</span></li>
+    <li><span>차 화면 가운데에 <b>라이브 화면과 댓글이 크게</b> 뜹니다.</span></li>
+    <li><span>지하주차장이라 어둡습니다. <b>‘웜 뷰티’ 프리셋</b>을 누르고 <b>다이얼을 두 칸</b> 돌려 밝기를 올립니다.</span></li>
+    <li><span>방송 중에는 폰 알림의 ‘차갑게’로 조금씩 맞춥니다. 마음에 든 조명은 <b>내 프리셋으로 저장</b>합니다.</span></li>
+    <li><span>충전이 끝나 기어를 D로 옮기면 <b>조명이 먼저 원래 값으로</b> 돌아가고 앱이 닫힙니다.</span></li>
+  </ol>
+  <p class="panel" style="margin-top:26px;font-size:26px;padding:22px 28px"><b>다른 장면.</b> 출근 전 화상회의 5분에는 풀 라이트로 화면 전체를 조명으로 씁니다. 주행 기어에서 앱을 열면 조명을 켜지 않고 안내 뒤 종료합니다.</p>
+</section>
+
+<!-- 11 개발 ① -->
+<section class="card">
+  <div class="top"><span class="chip"><i>5</i>개발 계획</span><span class="pg"></span></div>
+  <h2>Pleos Connect에서 이렇게 구현했습니다</h2>
+  <ul class="rows" style="--w:150px">
+    <li><b>차량 조명</b><span><em>Pleos Vehicle SDK 2.3.2 Light</em><br>앰비언트 밝기·색·스위치, 실내등, 독서등을 조회·설정·복원</span></li>
+    <li><b>기어</b><span><em>AAOS Car API CarPropertyManager</em><br>GEAR_SELECTION 구독으로 P·N·D·R 확인</span></li>
+    <li><b>다이얼</b><span><em>car-ui-lib</em> FocusArea, 직접 조작 모드</span></li>
+    <li><b>미러링</b><span><em>Android MediaProjection</em> + 가상 디스플레이<br>폰 화면을 프레임으로 보내 차에서 표시</span></li>
+    <li><b>동기화</b><span>미러링과 같은 연결 위의 양방향 메시지. 색온도를 색으로 바꾸는 코드를 두 앱이 같이 써서 링라이트·앰비언트·폰 화면이 같은 색</span></li>
+    <li><b>서버</b><span>없음. 위치·개인정보 수집 없음</span></li>
+  </ul>
+  <div class="fill"></div>
+  <p class="panel" style="font-size:26px;padding:22px 28px"><b>폰 연결 경로 세 가지</b>(USB 액세서리, USB 테더링, 같은 Wi-Fi)를 구현했고 어느 경로든 앱 동작은 같습니다. 지금까지 확인한 것은 에뮬레이터 경로이며, 실차에서 어느 경로가 열리는지는 Pleos 확인이 필요합니다.</p>
+</section>
+
+<!-- 12 개발 ② -->
+<section class="card">
+  <div class="top"><span class="chip"><i>5</i>개발 계획 · 구현 현황</span><span class="pg"></span></div>
+  <h2>기능 구현을 마치고 에뮬레이터에서 확인했습니다</h2>
+  <div class="stat"><b>79</b><span>개 단위 테스트 통과 · 2026-11-12 기준</span></div>
+  <h3 class="lbl" style="margin-top:30px">확인한 것 · Pleos Connect 에뮬레이터 2.1.0 ↔ 폰 에뮬레이터</h3>
+  <ul class="chk ok">
+    <li><b>차량 조명</b> 원래 값 읽기 → 설정 → 종료할 때 복원. 기어 D 전환 뒤 0.7초 안에 복원</li>
+    <li><b>정차 게이트</b> P에서 동작, D·R로 바꾸면 경고 뒤 약 3초 후 종료</li>
+    <li><b>미러링</b> 앱 하나만 공유, 가로·세로 회전, 화면 잠금 중 송출, 자동 재연결</li>
+    <li><b>동기화</b> 폰↔차 양방향(슬라이더, 색상환, 프리셋, 풀 라이트, 테마)</li>
+  </ul>
+  <h3 class="lbl" style="margin-top:30px">아직 확인하지 못한 것</h3>
+  <ul class="chk todo">
+    <li>실제 폰 연결, 틱톡·유튜브 라이브 같은 실제 촬영 앱의 미러링</li>
+    <li>실차 연결 경로(USB·무선), 실차의 화면 밝기 최대 허용, 실제 폰의 프레임 속도</li>
+  </ul>
+  <div class="fill"></div>
+  <div class="plan">
+    <div><b>~11/15</b><span>접수. 시연 영상, 저장소, 실제 폰 연결 확인</span></div>
+    <div><b>11/16~12/2</b><span>실제 촬영 앱과 실차 연결 경로 확인, 안정화</span></div>
+    <div><b>12/3~4</b><span>PT. 에뮬레이터와 실제 폰으로 시연</span></div>
+  </div>
+</section>
+
+<!-- 13 기대효과 -->
+<section class="card">
+  <div class="top"><span class="chip"><i>6</i>기대효과</span><span class="pg"></span></div>
+  <h2>기다리는 시간이 되풀이되는 사람들이 씁니다</h2>
+  <ul class="rows" style="--w:92px">
+    <li><b>1차</b><span>20~30대 전기차 오너 중 SNS 콘텐츠·라이브·영상통화 사용자. 공용 충전 대기(20~40분)가 주 1~2회 생기고 차는 반드시 P 상태</span></li>
+    <li><b>2차</b><span>픽업 대기가 많은 부모, 출근 전 차에서 준비하는 직장인, 차에서 화상회의를 하는 영업·프리랜서</span></li>
+    <li><b>3차</b><span>동승자(조수석)</span></li>
+  </ul>
+  <h3 class="lbl" style="margin-top:32px">예상 MAU · 가정에 기반한 추정</h3>
+  <div class="funnel">
+    <div><b>30<small>만 대</small></b><span>국내 탑재 차량(가정)</span></div><i>×</i>
+    <div><b>10<small>%</small></b><span>설치율(가정)</span></div><i>×</i>
+    <div><b>40<small>%</small></b><span>월 활성(가정)</span></div><i>=</i>
+    <div class="out"><b>1.2<small>만</small></b><span>MAU</span></div>
+  </div>
+  <p class="small">현대차그룹 발표(2025-03, 2026-04)로는 Pleos Connect 탑재 차량이 2028년 누적 약 700만 대, 2030년 2,000만 대 이상입니다. 국내 2027년 누적 대수는 발표가 없어 30만 대로 가정했습니다.</p>
+  <div class="fill"></div>
+  <p class="panel" style="font-size:27px;padding:24px 28px"><b>다시 쓰는 이유.</b> 쓰는 계기가 의지가 아니라 반복되는 상황(충전·픽업·출근)입니다. 시작까지 1분 이내이고, 마지막 조명과 내 프리셋이 남아 있으며, 쓰던 촬영 앱을 바꾸라고 하지 않습니다. 목표는 1주 재사용 40%, 4주 25%(가정)입니다.</p>
+</section>
+
+<!-- 14 발전 가능성 -->
+<section class="card">
+  <div class="top"><span class="chip"><i>6</i>발전 가능성</span><span class="pg"></span></div>
+  <h2>서비스를 이렇게 넓혀 갑니다</h2>
+  <ol class="nums" style="margin-bottom:34px">
+    <li><i>1</i><div><b>실차와 실제 촬영 앱으로</b><span>실차 연결 경로 확정(유선·무선), 지원 촬영 앱 검증 확대, 포즈를 잡은 채 “더 밝게” 하는 음성 조절</span></div></li>
+    <li><i>2</i><div><b>더 많은 자리와 사람으로</b><span>차 화면 터치로 폰 조작, 동승자·뒷좌석 모드, 2인 촬영 조명</span></div></li>
+    <li><i>3</i><div><b>차 밖의 파트너로</b><span>뷰티·패션 브랜드 협업 프리셋, 쇼룸·시승 체험 콘텐츠</span></div></li>
+  </ol>
+  <p class="close">기다리는 시간에, 장비 없이, 쓰던 앱 그대로 찍습니다. 내리면 차는 원래대로 돌아옵니다.</p>
+</section>
+
+<pre id="report" hidden></pre>
+<script>
+// ?n=3 이면 3번 카드만 남긴다(스크린샷용). ?report=1 이면 카드별 넘침을 #report 에 적는다.
+const q = new URLSearchParams(location.search);
+const cards = [...document.querySelectorAll('.card')];
+cards.forEach((c, i) => { c.querySelector('.pg').textContent = `${i + 1} / ${cards.length}`; });
+function report() {
+  const lines = cards.map((c, i) => {
+    const box = c.getBoundingClientRect();
+    const bottom = Math.max(...[...c.querySelectorAll('*')].map(k => k.getBoundingClientRect().bottom)) - box.top;
+    const right = Math.max(...[...c.querySelectorAll('*')].map(k => k.getBoundingClientRect().right)) - box.left;
+    const flex = [...c.querySelectorAll('.fill,.shot')].map(k => Math.round(k.getBoundingClientRect().height)).join(',');
+    return `card ${i + 1}: bottom ${Math.round(bottom)}/1286 right ${Math.round(right)}/1004 flex[${flex}]`;
+  });
+  const r = document.getElementById('report');
+  r.hidden = false; r.textContent = lines.join('\n');
+}
+if (q.get('report')) addEventListener('load', report);
+const n = +q.get('n');
+if (n) { cards.forEach((c, i) => { if (i !== n - 1) c.remove(); }); document.body.style.gap = '0'; }
+</script>
+</body>
+</html>
