@@ -58,7 +58,11 @@ fun StudioSection(title: String, modifier: Modifier = Modifier, note: String? = 
     }
 }
 
-/** 링라이트: 지금 값 읽기, 밝기·색온도 슬라이더, 무드 색. */
+/**
+ * 링라이트: 지금 값 읽기, 밝기, 색(색상환·헥사 입력·흰 빛 톤 칩).
+ * 색은 무드 색과 흰 빛(색온도) 중 하나다. 색상환이나 헥사로 고르면 무드 색이 되고([onMood] 에 "#RRGGBB"),
+ * 흰 빛 톤 칩을 누르면 그 색온도의 흰 빛으로 돌아간다([onKelvin]). 밝기는 어느 쪽이든 지금 색에 걸린다.
+ */
 @Composable
 fun RingLightSection(
     p: LightingParams,
@@ -72,12 +76,8 @@ fun RingLightSection(
         LightReadout(p)
         LabelValue("밝기", LightLabels.percent(p.level))
         LevelSlider(p.level, Color(ColorTemp.colorFor(p)), onLevel, Modifier.fillMaxWidth())
-        LabelValue("색온도", LightLabels.color(p))
-        KelvinSlider(p.kelvin, onKelvin, Modifier.fillMaxWidth())
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("무드 색", color = StudioColors.TextDim, style = MaterialTheme.typography.bodyMedium)
-            MoodDots(p.preset, onMood)
-        }
+        LabelValue("색", LightLabels.color(p))
+        LightColorPicker(p, onMood = { onMood(it) }, onKelvin = onKelvin, modifier = Modifier.fillMaxWidth())
     }
 }
 
@@ -149,7 +149,7 @@ fun CarScreenSection(
         Column(Modifier.alpha(if (enabled) 1f else 0.45f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("다이얼", color = StudioColors.TextDim, style = MaterialTheme.typography.bodyMedium)
-                Segmented(listOf("밝기", "색온도"), if (state.dialColor) 1 else 0, { onChange(state.copy(dialColor = it == 1)) }, Modifier.fillMaxWidth(), enabled)
+                Segmented(listOf("밝기", "흰 빛 톤"), if (state.dialColor) 1 else 0, { onChange(state.copy(dialColor = it == 1)) }, Modifier.fillMaxWidth(), enabled)
                 Text(LightLabels.dialStep(state.dialColor), color = StudioColors.TextDim, style = MaterialTheme.typography.bodySmall)
             }
             if (showAmbient) {

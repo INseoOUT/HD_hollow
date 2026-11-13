@@ -5,7 +5,7 @@ import kotlin.math.roundToInt
 
 /** 조명 값을 사람 말로. 차 패널·폰 화면·플로팅 컨트롤이 같은 문구를 쓴다. */
 object LightLabels {
-    /** 무드 색 이름. 모르는 키는 그대로. */
+    /** 무드 색 이름. 색상환·헥사로 고른 색("#RRGGBB")과 모르는 키는 그대로. */
     fun mood(name: String): String = when (name) {
         "cyan" -> "시안"
         "blue" -> "블루"
@@ -16,13 +16,20 @@ object LightLabels {
     /** "7000K" 또는 "퍼플". */
     fun color(p: LightingParams): String = p.preset?.let(::mood) ?: "${p.kelvin}K"
 
+    /** 흰 빛 톤 칩의 이름([LightingParams.WHITE_TONES]). */
+    fun whiteTone(kelvin: Int): String = when {
+        kelvin < 4500 -> "따뜻한 흰색"
+        kelvin < 6600 -> "자연광"
+        else -> "푸른 흰색"
+    }
+
     fun percent(level: Float): String = "${(level * 100).roundToInt()}%"
 
     /** "7000K · 60%". */
     fun summary(p: LightingParams): String = "${color(p)} · ${percent(p.level)}"
 
     /** 색의 느낌. 색온도 구간 이름 또는 "시안 무드". 기본값 7000K 는 "푸른기 도는 흰색". */
-    fun tone(p: LightingParams): String = p.preset?.let { "${mood(it)} 무드" } ?: when {
+    fun tone(p: LightingParams): String = p.preset?.let { if (it.startsWith("#")) "무드 색" else "${mood(it)} 무드" } ?: when {
         p.kelvin < 3300 -> "따뜻한 전구색"
         p.kelvin < 4500 -> "따뜻한 흰색"
         p.kelvin < 5600 -> "자연광"

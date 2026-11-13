@@ -74,26 +74,6 @@ fun ColorDot(color: Color, size: Dp = 14.dp, modifier: Modifier = Modifier, ring
     Box(modifier.size(size).background(color, CircleShape).border(1.dp, ring, CircleShape))
 }
 
-/** 무드 색 세 개. 고른 색은 글자색 링과 틈으로 표시하고, 다시 누르면 푼다(색온도 모드로). */
-@Composable
-fun MoodDots(selected: String?, onSelect: (String?) -> Unit, dot: Dp = 40.dp) {
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-        LightingParams.PRESETS.forEach { name ->
-            val c = Color(ColorTemp.MOOD_COLORS.getValue(name))
-            val on = selected == name
-            Box(
-                Modifier.size(dot)
-                    .clip(CircleShape)
-                    .semantics { contentDescription = LightLabels.mood(name) }
-                    .selectable(on, role = Role.RadioButton) { onSelect(if (on) null else name) }
-                    .border(if (on) 3.dp else 1.dp, if (on) StudioColors.Text else StudioColors.SwatchRing, CircleShape)
-                    .padding(if (on) 6.dp else 0.dp)
-                    .background(c, CircleShape)
-            )
-        }
-    }
-}
-
 /** 둘 이상 중 하나를 고르는 분할 버튼(다이얼 대상 등). */
 @Composable
 fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {

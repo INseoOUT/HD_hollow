@@ -53,7 +53,7 @@ class StudioLight(private val now: () -> Long = System::currentTimeMillis) {
     val kelvin: Int get() = kelvinState
     val preset: String? get() = presetState
 
-    var dialColor by mutableStateOf(false) // 다이얼이 조절하는 대상: false=밝기, true=색온도 (화면 터치·nudge 로 전환)
+    var dialColor by mutableStateOf(false) // 다이얼이 조절하는 대상: false=밝기, true=흰 빛 톤(색온도) (화면 터치·nudge 로 전환)
     var ambientLinked by mutableStateOf(true) // 링라이트 색·밝기를 앰비언트에도 넣는다(패널 토글)
     var fullLight by mutableStateOf(false) // 풀 라이트 모드: 모니터·패널을 숨기고 앱 영역 전체를 조명으로
     var theme by mutableStateOf(StudioState.THEME_DEFAULT) // 차 화면 테마(실내 마감에 맞춘 어두운 세트)
@@ -83,7 +83,7 @@ class StudioLight(private val now: () -> Long = System::currentTimeMillis) {
     }
 
     fun choosePreset(name: String?) {
-        presetState = name?.takeIf { it in LightingParams.PRESETS }
+        presetState = LightingParams.normalizePreset(name)
         ts = now()
     }
 

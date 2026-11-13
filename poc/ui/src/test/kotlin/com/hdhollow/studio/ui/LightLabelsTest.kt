@@ -32,4 +32,16 @@ class LightLabelsTest {
         assertEquals("100%", LightLabels.percent(1f))
         assertEquals("모름", LightLabels.mood("모름"))
     }
+
+    @Test
+    fun `색상환·헥사로 고른 무드 색`() {
+        val p = LightingParams(kelvin = 3500, level = 0.5f, preset = "#FF8040")
+        assertEquals("#FF8040 · 50%", LightLabels.summary(p))
+        assertEquals("무드 색", LightLabels.tone(p))
+    }
+
+    @Test
+    fun `흰 빛 톤 칩 이름`() {
+        assertEquals(listOf("따뜻한 흰색", "자연광", "푸른 흰색"), LightingParams.WHITE_TONES.map(LightLabels::whiteTone))
+    }
 }

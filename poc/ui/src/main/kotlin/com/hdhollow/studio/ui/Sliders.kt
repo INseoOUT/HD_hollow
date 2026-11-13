@@ -21,9 +21,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.dp
-import com.hdhollow.studio.shared.ColorTemp
-import com.hdhollow.studio.shared.LightingParams
-import kotlin.math.roundToInt
 
 private val THUMB = 28.dp
 private val TRACK = 14.dp
@@ -84,20 +81,3 @@ fun LevelSlider(level: Float, tint: Color, onChange: (Float) -> Unit, modifier: 
         modifier = modifier,
     )
 }
-
-/** 색온도. 트랙은 2700K(전구색) → 8000K(푸른빛)의 실제 색(ColorTemp). 단위는 슬라이더 단계(100K). */
-@Composable
-fun KelvinSlider(kelvin: Int, onChange: (Int) -> Unit, modifier: Modifier = Modifier) {
-    GradientSlider(
-        value = kelvin.toFloat(),
-        onValueChange = { v -> onChange((v / LightingParams.KELVIN_SLIDER_STEP).roundToInt() * LightingParams.KELVIN_SLIDER_STEP) },
-        colors = KELVIN_STOPS,
-        thumbColor = Color(ColorTemp.kelvinToArgb(kelvin)),
-        modifier = modifier,
-        valueRange = LightingParams.KELVIN_MIN.toFloat()..LightingParams.KELVIN_MAX.toFloat(),
-        steps = (LightingParams.KELVIN_MAX - LightingParams.KELVIN_MIN) / LightingParams.KELVIN_SLIDER_STEP - 1,
-    )
-}
-
-private val KELVIN_STOPS: List<Color> =
-    (LightingParams.KELVIN_MIN..LightingParams.KELVIN_MAX step LightingParams.KELVIN_SLIDER_STEP).map { Color(ColorTemp.kelvinToArgb(it)) }

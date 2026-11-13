@@ -42,7 +42,7 @@ object Scenes {
 
     /** 프리셋 칩의 색 점: 무드 색 또는 색온도의 색. 둘 다 없으면 흰색. */
     fun argb(scene: Scene): Int =
-        scene.preset?.let { ColorTemp.MOOD_COLORS[it] } ?: scene.kelvin?.let(ColorTemp::kelvinToArgb) ?: 0xFFFFFFFF.toInt()
+        scene.preset?.let(ColorTemp::moodArgb) ?: scene.kelvin?.let(ColorTemp::kelvinToArgb) ?: 0xFFFFFFFF.toInt()
 
     /** 지금 조명 값과 같은 프리셋(칩 선택 표시용). 없으면 null. */
     fun matching(p: LightingParams, all: List<Scene> = BUILT_IN): Scene? = all.firstOrNull { s ->
@@ -78,7 +78,7 @@ object Scenes {
             name = o.getString("name"),
             level = o.getDouble("level").toFloat().coerceIn(0f, 1f),
             kelvin = if (o.isNull("kelvin")) null else o.getInt("kelvin").coerceIn(LightingParams.KELVIN_MIN, LightingParams.KELVIN_MAX),
-            preset = if (o.isNull("preset")) null else o.getString("preset").takeIf { it in LightingParams.PRESETS },
+            preset = if (o.isNull("preset")) null else LightingParams.normalizePreset(o.getString("preset")),
             ambientLinked = o.optBoolean("ambientLinked", true),
         )
     } catch (_: JSONException) {

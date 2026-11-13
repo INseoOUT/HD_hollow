@@ -23,7 +23,7 @@ class ScenesTest {
     fun `값을 조금만 바꿔도 프리셋과 일치하지 않는다`() {
         val p = Scenes.apply(Scenes.BUILT_IN[0], LightingParams())
         assertNull(Scenes.matching(p.copy(level = p.level + LightingParams.LEVEL_DIAL_STEP)))
-        assertNull(Scenes.matching(p.copy(kelvin = p.kelvin - LightingParams.KELVIN_SLIDER_STEP)))
+        assertNull(Scenes.matching(p.copy(kelvin = p.kelvin - LightingParams.KELVIN_DIAL_STEP)))
     }
 
     @Test
@@ -65,5 +65,15 @@ class ScenesTest {
         assertEquals(ColorTemp.kelvinToArgb(3200), Scenes.argb(Scene("y", "웜", 0.85f, kelvin = 3200)))
         assertEquals(0xFFFFFFFF.toInt(), Scenes.argb(Scene("z", "빈", 0.5f)))
         Scenes.BUILT_IN.forEach { assertEquals(0xFF, Scenes.argb(it) ushr 24) } // 기본 프리셋은 모두 불투명한 색
+    }
+
+    @Test
+    fun `헥사 무드 색도 프리셋으로 저장하고 다시 찾는다`() {
+        val p = LightingParams(level = 0.5f, preset = "#12AB34")
+        val s = Scenes.fromCurrent(p, ambientLinked = true, name = "내 프리셋 1", now = 7L)
+        assertEquals(s, Scenes.fromJson(Scenes.toJson(s)))
+        assertEquals(0xFF12AB34.toInt(), Scenes.argb(s))
+        assertEquals(s, Scenes.matching(p, Scenes.BUILT_IN + s))
+        assertEquals(p.preset, Scenes.apply(s, LightingParams()).preset)
     }
 }

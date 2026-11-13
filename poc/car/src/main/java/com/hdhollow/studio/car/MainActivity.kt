@@ -240,7 +240,7 @@ private fun StudioScreen(
                 contentAlignment = Alignment.BottomCenter
             ) {
                 Text(
-                    "풀 라이트 · 다이얼로 밝기·색온도 조절 · 화면을 탭하면 돌아갑니다",
+                    "풀 라이트 · 다이얼로 밝기·흰 빛 톤 조절 · 화면을 탭하면 돌아갑니다",
                     color = Color.White.copy(alpha = 0.9f), style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.padding(32.dp).background(Color(0x66000000), CircleShape).padding(horizontal = 22.dp, vertical = 12.dp),
                 )

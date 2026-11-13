@@ -9,7 +9,7 @@ import org.json.JSONObject
  *
  * - [ambientLinked] 링라이트 색·밝기를 앰비언트에도 넣는다.
  * - [fullLight] 풀 라이트(모니터·패널을 숨기고 차 화면 전체를 조명으로).
- * - [dialColor] 다이얼이 조절하는 대상. false=밝기, true=색온도.
+ * - [dialColor] 다이얼이 조절하는 대상. false=밝기, true=흰 빛 톤(색온도).
  * - [theme] 차 화면 테마([THEMES] 중 하나. 실내 마감에 맞춘 어두운 세트). 폰 화면의 라이트·다크와는 별개다.
  * - [userScenes] 사용자 프리셋. 차가 저장하고 폰은 받아서 보여 준다(폰이 보낸 목록은 차가 무시한다).
  * - [src] 보낸 쪽.
