@@ -20,7 +20,7 @@ import kotlin.concurrent.thread
 /**
  * 폰 쪽 링크. 차가 접속해 오면(TCP, 2차에는 USB 액세서리도) 세션을 만들고 FRAME 을 흘려보낸다.
  * STATE(앱 상태)는 차가 기준이고 폰은 바꾼 순간에만 보낸다. COMMAND 는 폰 → 차(프리셋).
- * LIGHT 는 양방향: 차에서 오면 [onLight], 폰에서 바뀌면 [sendLight]. plan/work-plan.md 2절.
+ * LIGHT 는 양방향: 차에서 오면 [onLight], 폰에서 바뀌면 [sendLight]. plan/spec.md 2절.
  */
 class StudioLink(
     private val port: Int = Protocol.PORT,

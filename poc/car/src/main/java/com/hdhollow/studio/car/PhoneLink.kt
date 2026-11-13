@@ -9,7 +9,7 @@ import kotlinx.coroutines.withContext
 import java.net.Socket
 
 /**
- * 폰까지의 전송 계층 하나를 연다. plan/work-plan.md 2.1절.
+ * 폰까지의 전송 계층 하나를 연다. plan/spec.md 2.1·3.6절.
  * 1. USB 액세서리(AOA): 차가 호스트로 폰을 연다(2차, 실차 미확인).
  * 2. TCP: USB 테더링 게이트웨이 → NSD → 데모 고정값(10.0.2.2) 순서로 주소를 정해 접속한다.
  * 못 열면 null. 호출자(StudioLinkClient.run)가 2초 뒤 다시 부른다.

@@ -1,8 +1,8 @@
 # 개발 환경 정의
 
 > 작성일: 2026-10-29  
-> 근거: 공식 Vehicle 샘플 앱의 Gradle 설정(2026-10-29 GitHub `main` 기준), [../contest/environment.md](../contest/environment.md), [../sdk/overview.md](../sdk/overview.md), Android Studio·AGP 호환표, Gradle·Java 호환표  
-> 상태: 확정. 바꾸려면 이 문서를 먼저 고치고 팀 전원이 맞춘다.
+> 근거: 공식 Vehicle 샘플 앱의 Gradle 설정(2026-10-29 GitHub `main` 기준), [../../contest/environment.md](../../contest/environment.md), [../../sdk/overview.md](../../sdk/overview.md), Android Studio·AGP 호환표, Gradle·Java 호환표  
+> 상태: **종료(2026-11-10 보관).** '머신 환경' 절(JDK 17, Pleos 이미지, 콜드 부팅 AVD)은 지금도 맞다. 단, adb 는 platform-tools 35.0.2 를 쓴다(37.0.1 서버가 죽는다). '프로젝트 구조와 규칙'(단일 모듈 `:app`, NaviHelper, Fake 소스), '저장소·브랜치', '세팅 순서' 6~9, '확인 필요'는 실제와 다르다. 실제 구성과 실행 방법은 [../../poc/README.md](../../poc/README.md), 버전은 `poc/gradle/libs.versions.toml`, 남은 일은 [../work-plan.md](../work-plan.md). 아래는 2026-10-29 당시 내용 그대로다.
 
 ## 원칙
 
@@ -38,7 +38,7 @@ export ANDROID_HOME="$HOME/Library/Android/sdk"
 export PATH="$PATH:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator"
 ```
 
-Windows·Linux 팀원은 x86_64 이미지 URL(`crp-sys-img.xml`, 4.1 GB)을 쓰고, 공식 문서의 GPU 요건(최소 RTX 3060 Laptop 6 GB급)을 확인한다. [../contest/environment.md](../contest/environment.md#에뮬레이터-210-설치)
+Windows·Linux 팀원은 x86_64 이미지 URL(`crp-sys-img.xml`, 4.1 GB)을 쓰고, 공식 문서의 GPU 요건(최소 RTX 3060 Laptop 6 GB급)을 확인한다. [../../contest/environment.md](../../contest/environment.md#에뮬레이터-210-설치)
 
 ## 프로젝트 버전
 
@@ -71,7 +71,7 @@ Windows·Linux 팀원은 x86_64 이미지 URL(`crp-sys-img.xml`, 4.1 GB)을 쓰�
 - **단일 모듈 `:app`.** 모듈 분리는 하지 않는다.
 - **패키지.** `<base>.sdk`(Vehicle·NaviHelper 래퍼, `callbackFlow`, Fake 구현) · `<base>.domain`(순수 Kotlin 로직, 단위 테스트 대상) · `<base>.ui`(Compose 화면·ViewModel) · `<base>.di`(수동 조립).
 - **SDK 래퍼.** `VehicleSource`, `NaviSource` 인터페이스를 두고 `Real`과 `Fake` 두 구현을 만든다. Fake는 에뮬레이터가 주입하지 못하는 값(예: 속도)과 PT 데모 시나리오 재생에 쓴다. 디버그 메뉴에서 런타임 전환하며, 빌드 플레이버는 만들지 않는다.
-- **생명주기.** `initialize()`는 Application 또는 최상위 ViewModel에서 한 번, `release()`는 종료 시. 콜백이 끝나기 전 `release()` 금지. [../sdk/overview.md](../sdk/overview.md#공통-패턴)
+- **생명주기.** `initialize()`는 Application 또는 최상위 ViewModel에서 한 번, `release()`는 종료 시. 콜백이 끝나기 전 `release()` 금지. [../../sdk/overview.md](../../sdk/overview.md#공통-패턴)
 - **매니페스트 권한.** 실제 호출하는 API의 권한만 선언한다. 권한은 각 도메인 api 파일의 권한 열 기준. 샘플처럼 전체 권한을 복사하면 앱 심사에서 탈락한다.
 - **속도.** Pleos SDK에 없다. 필요하면 AAOS `CarPropertyManager`(`useLibrary("android.car")`)로 읽되, 에뮬레이터에서 주입 가능한지 확인한 뒤 결정한다.
 - **UI.** Compose + Material3. 차량 디스플레이 가로 화면 기준. 주행 중 화면은 글자 크게, 터치 타깃 크게, 한 화면에 정보 3개 이하.
@@ -81,7 +81,7 @@ Windows·Linux 팀원은 x86_64 이미지 URL(`crp-sys-img.xml`, 4.1 GB)을 쓰�
 - **앱 저장소는 별도로 만든다.** 이름은 앱 이름. 이 저장소(HD_hollow)는 문서·기획을 유지하고 앱 저장소 README에서 링크한다. 이유: 심사용 README 요건(앱 소개, 실행 방법, 테스트 환경, APK 위치)이 루트 README에 있어야 하고, Android Studio가 루트를 바로 열어야 하며, 비공개 저장소라면 심사용 계정 Collaborator 초대 범위를 앱만으로 좁힐 수 있다.
 - **브랜치.** `main` + `feat/*`. PR로 머지하되 셀프 머지 허용. 커밋 메시지는 한국어, 이 저장소 관례를 따른다.
 - **서명.** release keystore 1개를 만들어 팀 비밀 채널로 공유한다. `keystore.properties`와 `*.jks`는 `.gitignore`. `signingConfigs.release`는 properties 파일이 없으면 debug 키로 fallback해서 팀원·CI 빌드가 깨지지 않게 한다.
-- **APK.** `apk/팀명_앱이름_release.apk`. `isMinifyEnabled = false` 유지(심사 측 실행 안정성이 용량보다 중요). GitHub 100 MB를 넘으면 GitHub Release에 올리고 링크 제출. [../contest/rules.md](../contest/rules.md#github-저장소-제출-규격)
+- **APK.** `apk/팀명_앱이름_release.apk`. `isMinifyEnabled = false` 유지(심사 측 실행 안정성이 용량보다 중요). GitHub 100 MB를 넘으면 GitHub Release에 올리고 링크 제출. [../../contest/rules.md](../../contest/rules.md#github-저장소-제출-규격)
 - **CI.** 선택. 여유가 생기면 GitHub Actions(ubuntu, temurin 17)로 `assembleRelease`를 돌려 APK를 아티팩트로 남긴다. Pleos Maven이 익명이라 추가 설정 없이 된다.
 
 ## 세팅 순서

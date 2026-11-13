@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.resume
 
 /**
- * 폰에 붙는 쪽. 연결 하나로 FRAME·STATUS·COMMAND(폰→차)와 LIGHT·STATE(양방향)를 주고받는다. plan/work-plan.md 2절.
+ * 폰에 붙는 쪽. 연결 하나로 FRAME·STATUS·COMMAND(폰→차)와 LIGHT·STATE(양방향)를 주고받는다. plan/spec.md 2절.
  * 전송 계층은 [connect] 가 만든다(TCP 또는 USB 액세서리). [run] 이 살아 있는 동안 끊기면
  * [Protocol.RECONNECT_DELAY_MS] 뒤 다시 연다. 취소되면 끊는다.
  */

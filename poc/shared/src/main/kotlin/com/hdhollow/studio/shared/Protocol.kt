@@ -1,7 +1,7 @@
 package com.hdhollow.studio.shared
 
 /**
- * 폰↔차 계약 상수. plan/work-plan.md 2절.
+ * 폰↔차 계약 상수. plan/spec.md 2절.
  *
  * 연결 하나(차 → 폰 접속) 위에 길이 접두 메시지가 양방향으로 흐른다.
  * 전송 계층(TCP, USB 액세서리)은 [Transport] 로 갈아 끼우고 메시지는 [MessageCodec] 이 다룬다.

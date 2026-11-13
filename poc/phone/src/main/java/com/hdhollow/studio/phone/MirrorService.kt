@@ -52,7 +52,7 @@ import kotlin.math.max
 import kotlin.math.min
 
 /**
- * 폰 화면을 캡처해 차로 보내는 포그라운드 서비스. plan/work-plan.md 3절 P2~P7.
+ * 폰 화면을 캡처해 차로 보내는 포그라운드 서비스. plan/spec.md 3.5절.
  *
  * API 34+ 순서: startForeground(mediaProjection 타입) → getMediaProjection → registerCallback → ImageReader → createVirtualDisplay.
  * 가상 디스플레이는 정사각형(한 변 [Protocol.FRAME_MAX_SIDE]px 이하) 하나를 한 번만 만들고, 그 안에 AUTO_MIRROR 가 가운데 맞춘

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""가짜 차. 폰 앱을 차량 앱 없이 검증한다 (plan/work-plan.md 2.4절 T2).
+"""가짜 차. 폰 앱을 차량 앱 없이 검증한다 (plan/spec.md 2.5절).
 
 폰(기본 127.0.0.1:8080, 폰 에뮬레이터면 콘솔 redir 로 8080 을 넘긴 뒤)에 접속해 HELLO 를 보내고,
 받은 FRAME 의 크기·fps, LIGHT, HELLO 를 찍는다. stdin 으로 차 쪽 LIGHT 를 보낼 수 있다:
