@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- 디버그 빌드 전용. adb 로 조명 값·플로팅을 바꿔 탭 좌표에 기대지 않고 자동 테스트한다. 릴리스에는 없다.
+             adb shell am broadcast -n com.hdhollow.studio.phone/.DebugReceiver ei:kelvin 3300 ef:level 0.9 es:preset cyan ez:floating true
+             fps 측정: ei:quality 40, ei:side 720, es:bench <그림 파일>(JPEG 대 H.264 코덱 벤치, CodecBench) -->
+        <receiver android:name=".DebugReceiver" android:exported="true" />
+    </application>
+</manifest>

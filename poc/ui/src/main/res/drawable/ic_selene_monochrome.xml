@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 테마 아이콘(단색)용 앞면: 초승달만. 모양은 ic_selene_foreground 와 같다 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="1.15"
+        android:scaleY="1.15"
+        android:translateX="3"
+        android:translateY="-2">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M53.75,32 A22,22 0 1,0 75.05,60.4 A18,18 0 1,1 53.75,32 Z" />
+    </group>
+</vector>

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 화면 캡처는 포그라운드 서비스에서만(API 34+ 는 mediaProjection 타입 필수) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <!-- 알림의 '따뜻하게·차갑게·중지' 버튼이 보이도록(API 33+) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- 플로팅 컨트롤(다른 앱 위에 작은 조절판). 사용자가 설정에서 허용해야 뜬다 -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <!-- USB 액세서리 경로(2차): 차가 AOA 로 폰을 액세서리 모드로 바꾸면 시스템이 이 앱을 띄운다 -->
+    <uses-feature android:name="android.hardware.usb.accessory" android:required="false" />
+
+    <application
+        android:label="Selene"
+        android:icon="@mipmap/ic_selene"
+        android:roundIcon="@mipmap/ic_selene"
+        android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:screenOrientation="fullSensor"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.hardware.usb.action.USB_ACCESSORY_ATTACHED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.hardware.usb.action.USB_ACCESSORY_ATTACHED"
+                android:resource="@xml/accessory_filter" />
+        </activity>
+        <!-- 화면 캡처·송출. 액티비티가 죽어도 송출이 유지된다 -->
+        <service
+            android:name=".MirrorService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
+    </application>
+</manifest>

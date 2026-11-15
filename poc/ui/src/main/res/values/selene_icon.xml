@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 앱 아이콘 바탕: StudioPalettes.Black.ink. 차 화면에서 빛을 내지 않는 가장 깊은 바닥색 -->
+<resources>
+    <color name="selene_icon_background">#0B0B0C</color>
+</resources>

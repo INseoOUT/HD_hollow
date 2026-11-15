@@ -1,0 +1,258 @@
+<!doctype html>
+<!--
+  앱 이름 후보 카드뉴스 (1080×1350, 8장)
+  작성일: 2026-11-11
+  근거: plan/work-plan.md 5절 결정 1(앱명), 2026-11-11 이름 후보 검토(후보마다 웹 검색 1회, 상표 조회는 안 함)
+  상태: 팀 내부 공유용. 앱명이 정해지면 plan/archive/ 로 옮긴다.
+  색은 poc/ui StudioTheme 의 차 '블랙' 세트. 채도 있는 색은 조명 색과 상태 표시에만 쓴다.
+  다시 만들기: Chrome 헤드리스로 카드마다 ?n=1..8 을 찍는다.
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --hide-scrollbars \
+      --force-device-scale-factor=1 --window-size=1080,1350 --screenshot=01-cover.png "file://$PWD/cards.html?n=1"
+-->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>앱 이름 후보</title>
+<style>
+:root{
+  --ink:#0B0B0C; --surface:#151516; --surface-high:#202022; --line:#2E2E31;
+  --text:#F4F5F7; --body:#D9DBE0; --dim:#9E9FA3; --faint:#6A6B6F; --off:#5C5E66;
+  --ok:#5BE49B; --warn:#FFC56B;
+  --light:#EEF3FF; --glow:178,203,255; /* 7000K */
+  --kr:"Apple SD Gothic Neo","Pretendard","Noto Sans KR",sans-serif;
+  --en:"Avenir Next","Helvetica Neue","Apple SD Gothic Neo",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#000}
+body{font-family:var(--kr);color:var(--text);word-break:keep-all;-webkit-font-smoothing:antialiased;display:flex;flex-direction:column;gap:40px}
+
+.card{width:1080px;height:1350px;position:relative;overflow:hidden;background:var(--ink);padding:72px 80px;display:flex;flex-direction:column}
+.card>*{position:relative}
+
+.top{display:flex;justify-content:space-between;align-items:center;height:56px}
+.chip{border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:0 26px;height:56px;display:inline-flex;align-items:center;gap:14px;font-size:28px;font-weight:600;color:var(--text)}
+.chip em{font-style:normal;color:var(--dim);font-weight:500}
+.chip.lit{background:var(--light);border-color:var(--light);color:var(--ink);font-weight:700}
+.brand{font-family:var(--en);font-weight:600;font-size:34px;letter-spacing:-.01em}
+.pg{font-family:var(--en);font-weight:500;font-size:28px;color:var(--faint);font-variant-numeric:tabular-nums;letter-spacing:.04em}
+
+.hero{flex:1;min-height:270px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+/* 먼 빛. 흐림 반경이 큰 box-shadow 는 헤드리스 래스터 타일 경계에서 잘려서 radial-gradient 로 그린다 */
+.hero::before,.gear::before{content:"";position:absolute;left:50%;top:50%;width:1000px;height:780px;transform:translate(-50%,-50%);border-radius:50%;pointer-events:none;
+  background:radial-gradient(closest-side,rgba(var(--glow),.26),rgba(var(--glow),.1) 48%,rgba(var(--glow),.03) 76%,transparent)}
+.hero>*{position:relative}
+
+.name{font-family:var(--en);font-weight:700;font-size:136px;line-height:1.04;letter-spacing:-.025em;display:flex;align-items:baseline;gap:28px;white-space:nowrap}
+.name small{font-family:var(--kr);font-size:44px;font-weight:500;color:var(--dim);letter-spacing:0}
+.mean{font-size:48px;line-height:1.38;font-weight:700;margin-top:18px;letter-spacing:-.01em;text-wrap:balance}
+
+.pc{margin-top:34px;border-top:1.5px solid var(--line);padding-top:30px;display:flex;flex-direction:column;gap:26px}
+.pc h3{font-size:29px;font-weight:700;display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.pc h3::before{content:"";width:14px;height:14px;border-radius:50%;background:currentColor}
+.pros h3{color:var(--ok)} .cons h3{color:var(--warn)}
+.pc ul{list-style:none}
+.pc li{font-size:36px;line-height:1.5;color:var(--body);padding-left:28px;position:relative;text-wrap:pretty}
+.pc li::before{content:"";position:absolute;left:4px;top:.68em;width:8px;height:8px;border-radius:50%;background:var(--faint)}
+
+/* 조명 그림 */
+.ring{width:270px;height:270px;border-radius:50%;border:30px solid var(--light);position:relative;
+  box-shadow:0 0 64px 14px rgba(var(--glow),.55),inset 0 0 50px 6px rgba(var(--glow),.5)}
+.ring i{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:84px;height:150px;border-radius:17px;background:#16171A;border:2px solid #3D3F46}
+.ring i::after{content:"";position:absolute;left:50%;top:10px;width:8px;height:8px;margin-left:-4px;border-radius:50%;background:#3D3F46}
+
+.word{font-family:var(--en);font-weight:700;font-size:96px;letter-spacing:-.02em;display:flex;align-items:baseline;white-space:nowrap}
+.word .on{color:var(--light);text-shadow:0 0 28px rgba(var(--glow),.75),0 0 60px rgba(var(--glow),.4)}
+.word .off{color:var(--off)}
+.word .plus{color:var(--faint);font-weight:400;margin:0 34px}
+
+.gear{display:flex;gap:26px;padding:26px 30px;border-radius:999px;background:var(--surface);border:1.5px solid var(--line)}
+.gear::before{left:106px;width:640px;height:640px}
+.gear span{position:relative}
+.hero:has(.gear)::before{display:none}
+.gear span{width:150px;height:150px;border-radius:50%;display:grid;place-items:center;font-family:var(--en);font-weight:700;font-size:84px;color:#4A4B50}
+.gear .on{background:var(--light);color:var(--ink);box-shadow:0 0 56px 10px rgba(var(--glow),.6)}
+
+.kbar{width:760px;margin-top:92px;position:relative}
+.kbar .track{height:22px;border-radius:11px;background:linear-gradient(90deg,#FFA757 0%,#FFCEA6 25%,#FFECE0 53%,#FFF9FD 72%,#F3F4FF 81%,#DDE6FF 100%)}
+.kbar .mark{position:absolute;top:-12px;width:0}
+.kbar .mark::before{content:"";position:absolute;left:-1.5px;top:0;width:3px;height:46px;background:var(--ink);box-shadow:0 0 0 1.5px var(--text)}
+.kbar .mark span{position:absolute;left:0;transform:translateX(-50%);white-space:nowrap;font-size:28px;font-weight:600}
+.kbar .m70 span{bottom:20px;color:var(--text)}
+.kbar .m65 span{top:48px;color:var(--dim)}
+.kbar .ends{display:flex;justify-content:space-between;margin-top:14px;font-family:var(--en);font-size:26px;color:var(--faint)}
+
+.onair{--glow:255,85,70}
+.sign{padding:30px 68px;border-radius:28px;border:5px solid #FF5546;background:#190B0A;font-family:var(--en);font-weight:700;font-size:108px;line-height:1.1;letter-spacing:.1em;text-indent:.1em;color:#FF6F61;white-space:nowrap;
+  text-shadow:0 0 30px rgba(255,85,70,.9),0 0 60px rgba(255,85,70,.5);
+  box-shadow:0 0 64px 6px rgba(255,85,70,.45),inset 0 0 40px rgba(255,85,70,.25)}
+
+/* 표지 */
+.tile{width:230px;height:230px;border-radius:54px;background:radial-gradient(circle at 50% 40%,#fff 0%,var(--light) 46%,#C6D6FF 100%);
+  box-shadow:0 0 64px 16px rgba(var(--glow),.55)}
+.blank{margin-top:36px;width:290px;height:66px;border-radius:18px;border:2.5px dashed #5A5C63;display:grid;place-items:center}
+.blank i{width:4px;height:36px;border-radius:2px;background:var(--light);box-shadow:0 0 14px rgba(var(--glow),.9)}
+h1{font-size:104px;line-height:1.2;font-weight:800;letter-spacing:-.03em}
+.lead{font-size:40px;line-height:1.45;color:var(--dim);margin-top:26px;font-weight:500}
+.nb{white-space:nowrap}
+.names{display:flex;flex-wrap:wrap;gap:14px;margin-top:44px}
+.names span{font-family:var(--en);font-weight:600;font-size:32px;height:64px;padding:0 26px;border-radius:999px;border:1.5px solid var(--line);background:var(--surface);display:inline-flex;align-items:center;white-space:nowrap}
+
+/* 추천·마무리 */
+.rows{list-style:none;margin-top:30px;border-top:1.5px solid var(--line)}
+.rows li{display:grid;grid-template-columns:118px 1fr;align-items:baseline;padding:26px 0;border-bottom:1.5px solid var(--line)}
+.rows b{font-size:30px;font-weight:700;color:var(--dim)}
+.rows span{font-size:38px;line-height:1.46;color:var(--text);font-weight:500;text-wrap:pretty}
+.rows code{display:block;margin-top:14px;font-family:"SF Mono",Menlo,monospace;font-size:28px;color:var(--body);background:var(--surface-high);border-radius:12px;padding:12px 18px;width:fit-content;white-space:nowrap}
+.note{font-size:34px;line-height:1.5;color:var(--dim);margin-top:30px;text-wrap:pretty}
+.note b{font-family:var(--en);color:var(--text);font-weight:600}
+h2{font-size:84px;line-height:1.22;font-weight:800;letter-spacing:-.03em;margin-top:64px}
+.ask{margin-top:auto;font-size:52px;font-weight:700;letter-spacing:-.01em}
+</style>
+</head>
+<body>
+
+<section class="card">
+  <div class="top"><span class="brand">belle&amp;wise</span><span class="pg"></span></div>
+  <div class="hero"><div class="tile"></div><div class="blank"><i></i></div></div>
+  <h1>우리 앱 이름,<br>무엇으로 할까요</h1>
+  <p class="lead">‘차 안 스튜디오’(가칭 <span class="nb">Car Studio)에</span> 붙일<br>이름 후보 5개와 추천안</p>
+  <div class="names"><span>Halo</span><span>Hyundio</span><span>Studio P</span><span>Dailight</span><span>On Air</span></div>
+</section>
+
+<section class="card">
+  <div class="top"><span class="chip">후보 1<em>상징 단어</em></span><span class="pg"></span></div>
+  <div class="hero"><div class="ring"><i></i></div></div>
+  <div class="name">Halo <small>헤일로</small></div>
+  <p class="mean">모니터를 둘러싼 링라이트가 곧 빛의 고리, 후광입니다</p>
+  <div class="pc">
+    <div class="pros"><h3>좋은 점</h3><ul>
+      <li>자동차 업계에서 ‘헤일로 카’는 브랜드 전체를 빛내는 대표 모델</li>
+      <li>다이얼도 고리, 현대 엠블럼도 고리 안의 H</li>
+    </ul></div>
+    <div class="cons"><h3>걸리는 점</h3><ul>
+      <li>흔한 단어. 게임 Halo, 미국 렌터카 Halo.Car와 겹침</li>
+      <li>한 줄 소개 없이는 무슨 앱인지 알 수 없음</li>
+    </ul></div>
+  </div>
+</section>
+
+<section class="card">
+  <div class="top"><span class="chip">후보 2<em>현대의 일부</em></span><span class="pg"></span></div>
+  <div class="hero"><div class="word"><span class="on">Hyun</span><span class="off">dai</span><span class="plus">+</span><span class="off">Stu</span><span class="on">dio</span></div></div>
+  <div class="name">Hyundio <small>현디오</small></div>
+  <p class="mean">Hyundai와 Studio를 한 단어로 이었습니다</p>
+  <div class="pc">
+    <div class="pros"><h3>좋은 점</h3><ul>
+      <li>현대와의 연결이 이름에 바로 드러남</li>
+      <li>웹 검색에 같은 철자가 나오지 않음</li>
+    </ul></div>
+    <div class="cons"><h3>걸리는 점</h3><ul>
+      <li>현대 상표와 닮아 공식 앱처럼 읽힘. 규정은 상표 사용 권한을 요구함</li>
+      <li>기아·제네시스 차에서는 어색함</li>
+    </ul></div>
+  </div>
+</section>
+
+<section class="card">
+  <div class="top"><span class="chip">후보 3<em>차의 규칙</em></span><span class="pg"></span></div>
+  <div class="hero"><div class="gear"><span class="on">P</span><span>R</span><span>N</span><span>D</span></div></div>
+  <div class="name">Studio P <small>스튜디오 P</small></div>
+  <p class="mean">기어를 P에 놓아야 열리는 스튜디오</p>
+  <div class="pc">
+    <div class="pros"><h3>좋은 점</h3><ul>
+      <li>“운전 중에 쓰는 것 아니냐”는 질문에 이름이 먼저 답함</li>
+    </ul></div>
+    <div class="cons"><h3>걸리는 점</h3><ul>
+      <li>상징 단어라기보다 설명에 가까움</li>
+      <li>지금 앱은 N 기어에서도 열려서 이름과 어긋남</li>
+    </ul></div>
+  </div>
+</section>
+
+<section class="card">
+  <div class="top"><span class="chip">후보 4<em>현대의 일부</em></span><span class="pg"></span></div>
+  <div class="hero">
+    <div class="word"><span class="off">Hyun</span><span class="on">dai</span><span class="plus">+</span><span class="on">light</span></div>
+    <div class="kbar">
+      <div class="track"></div>
+      <div class="mark m65" style="left:71.7%"><span>주광색 6500K</span></div>
+      <div class="mark m70" style="left:81.1%"><span>기본 조명 7000K</span></div>
+      <div class="ends"><span>2700K</span><span>8000K</span></div>
+    </div>
+  </div>
+  <div class="name">Dailight <small>데이라이트</small></div>
+  <p class="mean">Hyundai의 dai에 light를 붙이면 daylight, 낮의 빛</p>
+  <div class="pc">
+    <div class="pros"><h3>좋은 점</h3><ul>
+      <li>기본 조명 7000K가 주광색(6500K)에 가까움</li>
+    </ul></div>
+    <div class="cons"><h3>걸리는 점</h3><ul>
+      <li>daylight의 오타처럼 보임</li>
+      <li>한국어로는 ‘다이라이트’로 읽힘</li>
+    </ul></div>
+  </div>
+</section>
+
+<section class="card onair">
+  <div class="top"><span class="chip">후보 5<em>상징 단어</em></span><span class="pg"></span></div>
+  <div class="hero"><div class="sign">ON AIR</div></div>
+  <div class="name">On Air <small>온에어</small></div>
+  <p class="mean">스튜디오 문 위의 ‘방송 중’ 표시등</p>
+  <div class="pc">
+    <div class="pros"><h3>좋은 점</h3><ul>
+      <li>라이브에 쓰는 앱이라는 점이 바로 전달됨</li>
+    </ul></div>
+    <div class="cons"><h3>걸리는 점</h3><ul>
+      <li>같은 이름이 많음</li>
+      <li>차와 이어지는 뜻이 없음</li>
+    </ul></div>
+  </div>
+</section>
+
+<section class="card">
+  <div class="top"><span class="chip lit">추천</span><span class="pg"></span></div>
+  <div class="hero"><div class="ring"><i></i></div></div>
+  <div class="name">Halo <small>헤일로</small></div>
+  <ol class="rows">
+    <li><b>제품</b><span>화면에서 가장 먼저 보이는 빛의 고리가 곧 이름</span></li>
+    <li><b>심사</b><span>차 용어 ‘헤일로 카’로 차량특화성을 설명할 수 있음</span></li>
+    <li><b>확장</b><span>현대 상표에 기대지 않아 기아·제네시스까지 같은 이름</span></li>
+  </ol>
+  <p class="note">현대와의 연결을 드러내려면 <b>Hyundio</b>. 이 경우 상표는 주최 측에 먼저 문의해야 합니다.</p>
+</section>
+
+<section class="card">
+  <div class="top"><span class="chip">정하기 전에</span><span class="pg"></span></div>
+  <h2>이름을 정하기 전에<br>알아 둘 것</h2>
+  <ol class="rows" style="margin-top:auto">
+    <li><b>확인</b><span>상표 조회(KIPRIS)는 아직 안 함. 후보마다 웹 검색만 한 번씩 함</span></li>
+    <li><b>기한</b><span>11월 13일(금) 서명 빌드 전</span></li>
+    <li><b>반영</b><span>앱 라벨, 기획서, README, APK 파일명이 함께 바뀜<code>belle&amp;wise_앱이름_release.apk</code></span></li>
+  </ol>
+  <div class="ask">어떤 이름이 좋을까요?</div>
+  <div class="names" style="margin-top:30px"><span>Halo</span><span>Hyundio</span><span>Studio P</span><span>Dailight</span><span>On Air</span></div>
+</section>
+
+<pre id="report" hidden></pre>
+<script>
+// ?n=3 이면 3번 카드만 남긴다(스크린샷용). ?report=1 이면 카드별 넘침을 #report 에 적는다.
+const q = new URLSearchParams(location.search);
+const cards = [...document.querySelectorAll('.card')];
+cards.forEach((c, i) => { c.querySelector('.pg').textContent = `${i + 1} / ${cards.length}`; });
+if (q.get('report')) {
+  const lines = cards.map((c, i) => {
+    const box = c.getBoundingClientRect();
+    const kids = [...c.children];
+    const bottom = Math.max(...kids.map(k => k.getBoundingClientRect().bottom)) - box.top;
+    const right = Math.max(...[...c.querySelectorAll('*')].map(k => k.getBoundingClientRect().right)) - box.left;
+    const hero = c.querySelector('.hero');
+    return `card ${i + 1}: bottom ${Math.round(bottom)}/1278 right ${Math.round(right)}/1000 hero ${hero ? Math.round(hero.getBoundingClientRect().height) : '-'}`;
+  });
+  const r = document.getElementById('report');
+  r.hidden = false; r.textContent = lines.join('\n');
+}
+const n = +q.get('n');
+if (n) { cards.forEach((c, i) => { if (i !== n - 1) c.remove(); }); document.body.style.gap = '0'; }
+</script>
+</body>
+</html>

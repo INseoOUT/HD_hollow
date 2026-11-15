@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  앱 아이콘 앞면: 초승달(이름 Selene 의 모티프)과 그 둘레의 옅은 빛.
+  초승달은 반지름 22 원에서 오른쪽 위로 (8,-6) 비켜난 반지름 18 원을 뺀 모양이고, 색은 기본 조명색(7000K)이다.
+  적응형 아이콘의 안전 영역(지름 66) 안에 들어간다. 차 앱과 폰 앱이 같이 쓴다.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#EEF3FF"
+        android:fillAlpha="0.06"
+        android:pathData="M54,54 m-40,0 a40,40 0 1,0 80,0 a40,40 0 1,0 -80,0" />
+    <path
+        android:fillColor="#EEF3FF"
+        android:fillAlpha="0.08"
+        android:pathData="M54,54 m-31,0 a31,31 0 1,0 62,0 a31,31 0 1,0 -62,0" />
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="1.15"
+        android:scaleY="1.15"
+        android:translateX="3"
+        android:translateY="-2">
+        <path
+            android:fillColor="#EEF3FF"
+            android:pathData="M53.75,32 A22,22 0 1,0 75.05,60.4 A18,18 0 1,1 53.75,32 Z" />
+    </group>
+</vector>

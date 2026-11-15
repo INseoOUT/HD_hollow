@@ -1,0 +1,29 @@
+[versions]
+agp = "8.8.2"
+kotlin = "2.0.0"
+coreKtx = "1.16.0"
+lifecycle = "2.9.0"
+activityCompose = "1.10.1"
+composeBom = "2024.04.01"
+vehicleSdk = "2.3.2"
+carUi = "2.6.0"
+junit = "4.13.2"
+orgJson = "20240303" # 단위 테스트에서 org.json 을 쓰기 위해(안드로이드 스텁은 호출 시 예외)
+
+[libraries]
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycle" }
+androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
+androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
+androidx-ui = { group = "androidx.compose.ui", name = "ui" }
+androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
+vehicle-sdk = { module = "ai.pleos.playground:Vehicle", version.ref = "vehicleSdk" }
+car-ui-lib = { module = "com.android.car.ui:car-ui-lib", version.ref = "carUi" }
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+org-json = { group = "org.json", name = "json", version.ref = "orgJson" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+android-library = { id = "com.android.library", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
