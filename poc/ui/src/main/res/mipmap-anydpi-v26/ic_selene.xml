@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 앱 아이콘(적응형). 차 앱과 폰 앱의 매니페스트가 같이 가리킨다 -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/selene_icon_background" />
+    <foreground android:drawable="@drawable/ic_selene_foreground" />
+    <monochrome android:drawable="@drawable/ic_selene_monochrome" />
+</adaptive-icon>

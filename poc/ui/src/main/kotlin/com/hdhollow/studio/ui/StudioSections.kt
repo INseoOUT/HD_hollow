@@ -1,16 +1,16 @@
 package com.hdhollow.studio.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -22,7 +22,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.hdhollow.studio.shared.ColorTemp
 import com.hdhollow.studio.shared.LightingParams
@@ -31,23 +33,35 @@ import com.hdhollow.studio.shared.Scenes
 import com.hdhollow.studio.shared.StudioState
 
 /*
- * 차 패널과 폰 화면이 똑같이 쓰는 구역 세 개: 링라이트, 프리셋, 차 화면.
- * 내용·순서·문구가 한 곳에 있어 두 앱의 구성이 어긋나지 않는다. 묶는 모양만 다르다(차는 구분선, 폰은 카드).
+ * 차 패널과 폰 화면이 똑같이 쓰는 구역 네 개: 링라이트(지금 값·밝기), 프리셋, 색, 차 화면.
+ * 순서는 자주 쓰는 것부터다: 지금 값을 보고 → 프리셋 한 번 탭 → 밝기 → 색을 직접 고르기 → 차 화면 설정.
+ * 내용·순서·문구가 한 곳에 있어 두 앱의 구성이 어긋나지 않는다. 묶는 모양만 다르다(차는 패널 안의 구역, 폰은 카드).
  */
 
-/** 구역 하나: 흐린 제목 + 내용. 차에서는 위에 선을 긋고, 폰에서는 카드에 넣는다. [note] 는 제목 오른쪽의 작은 글. */
+/**
+ * 구역 하나: 흐린 제목 + 내용. 폰에서는 카드에 넣고, 차에서는 패널이 구역 사이에 선을 긋는다.
+ * 제목 오른쪽에 [value](지금 값, 또렷하게)나 [note](작은 글)를 둔다.
+ */
 @Composable
-fun StudioSection(title: String, modifier: Modifier = Modifier, note: String? = null, content: @Composable ColumnScope.() -> Unit) {
+fun StudioSection(
+    title: String,
+    modifier: Modifier = Modifier,
+    note: String? = null,
+    value: String? = null,
+    content: @Composable ColumnScope.() -> Unit,
+) {
     val head: @Composable () -> Unit = {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text(title, color = StudioColors.TextDim, style = MaterialTheme.typography.titleSmall)
-            if (note != null) Text(note, color = StudioColors.TextFaint, style = MaterialTheme.typography.labelSmall)
+            when {
+                value != null -> Text(value, color = StudioColors.Text, style = MaterialTheme.typography.titleMedium)
+                note != null -> Text(note, color = StudioColors.TextFaint, style = MaterialTheme.typography.labelSmall)
+            }
         }
     }
     if (LocalStudioCar.current) {
-        Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Box(Modifier.fillMaxWidth().height(1.dp).background(StudioColors.Line))
-            Box(Modifier.padding(top = 6.dp)) { head() }
+        Column(modifier, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            head()
             content()
         }
     } else {
@@ -58,26 +72,31 @@ fun StudioSection(title: String, modifier: Modifier = Modifier, note: String? = 
     }
 }
 
-/**
- * 링라이트: 지금 값 읽기, 밝기, 색(색상환·헥사 입력·흰 빛 톤 칩).
- * 색은 무드 색과 흰 빛(색온도) 중 하나다. 색상환이나 헥사로 고르면 무드 색이 되고([onMood] 에 "#RRGGBB"),
- * 흰 빛 톤 칩을 누르면 그 색온도의 흰 빛으로 돌아간다([onKelvin]). 밝기는 어느 쪽이든 지금 색에 걸린다.
- */
+/** 링라이트: 지금 값 읽기와 밝기. 가장 자주 보는 것과 가장 자주 만지는 것을 맨 위에 둔다. */
 @Composable
-fun RingLightSection(
-    p: LightingParams,
-    onLevel: (Float) -> Unit,
-    onKelvin: (Int) -> Unit,
-    onMood: (String?) -> Unit,
-    modifier: Modifier = Modifier,
-    note: String? = null,
-) {
+fun RingLightSection(p: LightingParams, onLevel: (Float) -> Unit, modifier: Modifier = Modifier, note: String? = null) {
     StudioSection("링라이트", modifier, note) {
         LightReadout(p)
         LabelValue("밝기", LightLabels.percent(p.level))
         LevelSlider(p.level, Color(ColorTemp.colorFor(p)), onLevel, Modifier.fillMaxWidth())
-        LabelValue("색", LightLabels.color(p))
-        LightColorPicker(p, onMood = { onMood(it) }, onKelvin = onKelvin, modifier = Modifier.fillMaxWidth())
+    }
+}
+
+/**
+ * 색: 색상환·헥사 입력(무드 색)과 흰 빛 톤 칩(색온도). 프리셋으로 안 되는 색을 직접 고를 때 쓴다.
+ * 색은 무드 색과 흰 빛 중 하나다. 색상환이나 헥사로 고르면 무드 색이 되고([onMood] 에 "#RRGGBB"),
+ * 흰 빛 톤 칩을 누르면 그 색온도의 흰 빛으로 돌아간다([onKelvin]). [showHex] 는 [LightColorPicker] 참고.
+ */
+@Composable
+fun ColorSection(
+    p: LightingParams,
+    onKelvin: (Int) -> Unit,
+    onMood: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    showHex: Boolean = true,
+) {
+    StudioSection("색", modifier, value = LightLabels.color(p)) {
+        LightColorPicker(p, onMood = onMood, onKelvin = onKelvin, modifier = Modifier.fillMaxWidth(), showHex = showHex)
     }
 }
 
@@ -133,6 +152,7 @@ fun PresetSection(
 /**
  * 차 화면: 다이얼 대상, 앰비언트 연동, 풀 라이트, 차 화면 테마. 모두 스튜디오 앱의 상태([StudioState])다.
  * [enabled] 가 false(폰이 차와 떨어져 있음)면 흐리게 두고 누를 수 없다. [extra] 는 그 화면에만 있는 덧붙임(차의 앰비언트 구역 값).
+ * [showFullLight] 가 false 면 풀 라이트 줄을 뺀다(차: 패널 맨 아래에 늘 보이는 버튼으로 따로 둔다).
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -143,6 +163,7 @@ fun CarScreenSection(
     enabled: Boolean = true,
     note: String? = null,
     showAmbient: Boolean = true,
+    showFullLight: Boolean = true,
     extra: @Composable ColumnScope.() -> Unit = {},
 ) {
     StudioSection("차 화면", modifier, note) {
@@ -157,7 +178,9 @@ fun CarScreenSection(
                 extra()
             }
             // 폰 화면을 직접 봐야 할 때(화상회의): 모니터·패널을 숨기고 전체를 조명으로. 차 화면을 탭해도 돌아온다
-            ToggleRow("풀 라이트", "모니터·패널을 숨기고 차 화면 전체를 조명으로", state.fullLight, { onChange(state.copy(fullLight = it)) }, enabled)
+            if (showFullLight) {
+                ToggleRow("풀 라이트", "모니터·패널을 숨기고 차 화면 전체를 조명으로", state.fullLight, { onChange(state.copy(fullLight = it)) }, enabled)
+            }
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("테마", color = StudioColors.TextDim, style = MaterialTheme.typography.bodyMedium)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -175,14 +198,21 @@ fun CarScreenSection(
     }
 }
 
-/** 제목 + 설명 + 스위치 한 줄. */
+/** 제목 + 설명 + 스위치 한 줄. 스위치만이 아니라 줄 전체가 눌린다(스위치는 52×32dp 라 차에서 누르기 작다). */
 @Composable
 fun ToggleRow(title: String, body: String?, checked: Boolean, onChange: (Boolean) -> Unit, enabled: Boolean = true, modifier: Modifier = Modifier) {
-    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        modifier.fillMaxWidth()
+            .heightIn(min = StudioSizes.Touch)
+            .clip(RoundedCornerShape(12.dp))
+            .toggleable(checked, enabled = enabled, role = Role.Switch, onValueChange = onChange),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Column(Modifier.weight(1f).padding(end = 12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(title, color = StudioColors.Text, style = MaterialTheme.typography.bodyLarge)
             if (body != null) Text(body, color = StudioColors.TextDim, style = MaterialTheme.typography.bodySmall)
         }
-        Switch(checked, onChange, enabled = enabled)
+        Switch(checked, onCheckedChange = null, enabled = enabled)
     }
 }

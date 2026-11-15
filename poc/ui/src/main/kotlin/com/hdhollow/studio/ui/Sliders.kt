@@ -22,12 +22,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.dp
 
-private val THUMB = 28.dp
-private val TRACK = 14.dp
-
 /**
  * 트랙이 그라데이션인 슬라이더. 트랙은 "이쪽으로 가면 어떤 빛이 되는지"를, 손잡이 속은 "지금 빛"을 보여 준다.
- * 제스처·단계·접근성은 M3 [Slider] 그대로고 그림만 바꾼다.
+ * 제스처·단계·접근성은 M3 [Slider] 그대로고 그림만 바꾼다. 손잡이·트랙·누르는 높이는 [StudioSizes](차가 더 크다).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,27 +38,29 @@ fun GradientSlider(
     steps: Int = 0,
 ) {
     val interaction = remember { MutableInteractionSource() }
-    val shape = RoundedCornerShape(TRACK / 2)
+    val thumbSize = StudioSizes.Thumb
+    val trackHeight = StudioSizes.Track
+    val shape = RoundedCornerShape(trackHeight / 2)
     Slider(
         value = value,
         onValueChange = onValueChange,
-        modifier = modifier.height(40.dp),
+        modifier = modifier.height(StudioSizes.Touch),
         valueRange = valueRange,
         steps = steps,
         interactionSource = interaction,
         thumb = {
             Box(
-                Modifier.size(THUMB)
+                Modifier.size(thumbSize)
                     .shadow(4.dp, CircleShape)
                     .background(Color.White, CircleShape)
                     .border(1.dp, StudioColors.SwatchRing, CircleShape)
-                    .padding(4.dp)
+                    .padding(thumbSize / 7)
                     .background(thumbColor, CircleShape)
             )
         },
         track = {
             Box(
-                Modifier.fillMaxWidth().height(TRACK)
+                Modifier.fillMaxWidth().height(trackHeight)
                     .clip(shape)
                     .background(Brush.horizontalGradient(colors))
                     .border(1.dp, StudioColors.SwatchRing, shape)

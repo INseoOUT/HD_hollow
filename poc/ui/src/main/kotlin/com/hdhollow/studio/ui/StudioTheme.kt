@@ -13,6 +13,8 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.hdhollow.studio.shared.StudioState
 
@@ -156,20 +158,45 @@ private val PhoneType = Typography(
     labelSmall = type(11, FontWeight.Medium),
 )
 
-/** 차 글자 크기. 70cm 거리·160dpi 에서 읽히도록 폰보다 한 단계 크고, 보조 글자도 15sp 아래로 내리지 않는다. */
+/** 차 글자 크기. 70cm 거리·160dpi 에서 읽히도록 폰보다 크게 잡고, 보조 글자도 18sp 아래로 내리지 않는다. */
 private val CarType = Typography(
-    headlineMedium = type(40, FontWeight.SemiBold),
-    headlineSmall = type(32, FontWeight.SemiBold),
-    titleLarge = type(26, FontWeight.SemiBold),
-    titleMedium = type(20, FontWeight.SemiBold),
-    titleSmall = type(17, FontWeight.Medium),
-    bodyLarge = type(19),
-    bodyMedium = type(17),
-    bodySmall = type(15),
-    labelLarge = type(18, FontWeight.Medium),
-    labelMedium = type(16, FontWeight.Medium),
-    labelSmall = type(14, FontWeight.Medium),
+    headlineMedium = type(44, FontWeight.SemiBold),
+    headlineSmall = type(36, FontWeight.SemiBold),
+    titleLarge = type(30, FontWeight.SemiBold),
+    titleMedium = type(24, FontWeight.SemiBold),
+    titleSmall = type(20, FontWeight.Medium),
+    bodyLarge = type(22),
+    bodyMedium = type(20),
+    bodySmall = type(18),
+    labelLarge = type(22, FontWeight.Medium),
+    labelMedium = type(18, FontWeight.Medium),
+    labelSmall = type(16, FontWeight.Medium),
 )
+
+/**
+ * 크기 토큰. 차는 팔 길이에서 누르므로 누르는 것이 폰보다 크다.
+ * 차의 [Touch] 64dp 는 160dpi 에서 약 10mm 다(Android Automotive 가이드의 권장은 76dp. 풀 라이트처럼 한 줄을 다 쓰는 버튼은 그 값을 쓴다).
+ */
+object StudioSizes {
+    /** 누르는 것(칩·분할 버튼·토글 줄·슬라이더)의 최소 높이. */
+    val Touch: Dp @Composable @ReadOnlyComposable get() = if (LocalStudioCar.current) 64.dp else 48.dp
+
+    /** 칩의 좌우 여백. */
+    val ChipInset: Dp @Composable @ReadOnlyComposable get() = if (LocalStudioCar.current) 22.dp else 16.dp
+
+    /** 칩 안·프리셋 줄의 색 점. */
+    val Dot: Dp @Composable @ReadOnlyComposable get() = if (LocalStudioCar.current) 18.dp else 14.dp
+
+    /** 지금 빛을 보여 주는 큰 색 견본. */
+    val Swatch: Dp @Composable @ReadOnlyComposable get() = if (LocalStudioCar.current) 72.dp else 56.dp
+
+    /** 슬라이더 손잡이와 트랙. */
+    val Thumb: Dp @Composable @ReadOnlyComposable get() = if (LocalStudioCar.current) 40.dp else 28.dp
+    val Track: Dp @Composable @ReadOnlyComposable get() = if (LocalStudioCar.current) 20.dp else 14.dp
+
+    /** 색상환 지름. */
+    val Wheel: Dp @Composable @ReadOnlyComposable get() = if (LocalStudioCar.current) 208.dp else 168.dp
+}
 
 /**
  * 두 앱의 공통 테마. [car] 면 차 글자 크기. [palette] 를 주지 않으면 시스템 설정을 따라 라이트·다크(폰).

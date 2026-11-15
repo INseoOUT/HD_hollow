@@ -1,6 +1,6 @@
 # Selene — 차 안 스튜디오
 
-> 작성일: 2026-11-09 · 다시 씀: 2026-11-10 · 앱명 반영: 2026-11-12
+> 작성일: 2026-11-09 · 다시 씀: 2026-11-10 · 앱명 반영: 2026-11-12 · 화면 개선 반영: 2026-11-13
 > 근거: 이 폴더의 코드와 [verification.md](verification.md)의 확인 결과. 기획서 [../plan/submission-draft.md](../plan/submission-draft.md) · 명세 [../plan/spec.md](../plan/spec.md) · 남은 일 [../plan/work-plan.md](../plan/work-plan.md)
 > 상태: 기능 구현을 마치고 에뮬레이터 두 대에서 확인했다(브랜치 `design/hyundio`). 실기기·실차는 미확인이고 release APK 는 아직 만들지 않았다. **⚠️ 표시는 제출 전에 채울 곳.**
 
@@ -73,9 +73,9 @@ release APK 는 `apk/` 에 둔다. ⚠️ 아직 없다([../plan/work-plan.md](.
 | 모듈 | 하는 일 |
 |---|---|
 | `shared/` | 폰↔차 계약. `Protocol`(포트 8080, 메시지 HELLO/FRAME/LIGHT/PING/STATUS/STATE/COMMAND, 상한·주기), `MessageCodec`(type 1B \| length 4B \| payload), `LightingParams`(색온도 2700~8000K·기본 7000K·밝기·무드 색 JSON), `ColorTemp`(켈빈→ARGB, 링과 앰비언트가 같은 함수), `Scene`·`Scenes`(프리셋: 기본 4종, 적용·일치·저장 JSON), `StudioState`(앰비언트 연동·풀 라이트·다이얼 대상·차 테마·사용자 프리셋. 차가 기준)·`StudioCommand`(폰이 차에 부탁하는 프리셋 적용·저장·삭제), `Transport`(TCP·스트림), `LinkSession`(세션: HELLO 교환, 최신 FRAME 만, PING, 무수신 15초), `Aoa`(USB 액세서리 상수) |
-| `ui/` | 두 앱이 같이 쓰는 디자인 시스템. `StudioTheme`(색 토큰 `StudioPalette`: 차 테마 `CarThemes` 블랙·웜 그레이지·네이비는 모두 어두운 저채도, 폰은 시스템을 따르는 라이트·다크. 컴포저블에서는 `StudioColors` 로 지금 테마의 색을 읽는다. 차/폰 글자 크기), 두 앱이 똑같이 쓰는 구역 `RingLightSection`·`PresetSection`·`CarScreenSection`(차에서는 구분선, 폰에서는 카드로 묶임), 그라데이션 슬라이더(`LevelSlider`·`KelvinSlider`: 트랙이 실제 밝기·색온도 색, 손잡이 속이 지금 빛), `StudioChip`·`MoodDots`·`Segmented`·`StatusPill`·`LightReadout`(색 견본 + "7000K · 60%" + 느낌 이름)·`StudioCard`·`StepRow`, 조명 값 라벨(`LightLabels`). Compose 를 모르는 `shared` 와 전송을 모르는 `ui` 를 나눈다 |
-| `car/` | Pleos Connect 차량 앱. 기어 P·N 게이트(D·R 이면 경고 3초 후 종료, 실행 시점에도 같음), 링라이트(테두리 두께 = 밝기, 색온도/무드 색), 폰 화면 모니터, 조명 패널(프리셋 기본 4종 + 사용자 저장·삭제, 앰비언트 연동; 실내등·독서등은 프리셋으로만 바뀌고 종료 시 원래 값 복원. 원래 값은 `OriginalStore` 에 저장해 비정상 종료 뒤 다음 실행이 이어받아 복원), 풀 라이트 모드, 공유 상태 안내(공유 앱이 가려지면 오버레이, 공유가 끝나면 문구), 다이얼(`DialTarget`), 폰 연결(`PhoneLink`: USB 액세서리 → TCP[테더링 게이트웨이 → NSD → 10.0.2.2]) |
-| `phone/` | 폰 동반 앱. `MirrorService`(MediaProjection → 정사각 1200px 가상 디스플레이에서 폰 화면 영역(`MirrorFit`)만 잘라 15fps JPEG → 세션), `StudioLink`(TCP 8080 서버 + USB 액세서리 세션), 차 패널과 같은 구역(링라이트·프리셋·차 화면: 차가 붙어 있으면 다이얼 대상·앰비언트 연동·풀 라이트·차 테마를 바꾸고 프리셋을 저장·삭제)·알림 버튼(따뜻하게·차갑게·중지)·플로팅 컨트롤(항상 어두운 판), 공유 상태(STATUS: 앱 가려짐·공유 끝남) 전송과 '공유가 끝났어요' 알림(탭하면 재시작), NSD `_selene._tcp` 광고. 디버그 빌드에만 `DebugReceiver`(adb 로 조명 값·JPEG 품질·한 변 변경)와 `CodecBench`(같은 그림을 JPEG 와 H.264 로 인코드·디코드해 비교) |
+| `ui/` | 두 앱이 같이 쓰는 디자인 시스템. `StudioTheme`(색 토큰 `StudioPalette`: 차 테마 `CarThemes` 블랙·웜 그레이지·네이비는 모두 어두운 저채도, 폰은 시스템을 따르는 라이트·다크. 컴포저블에서는 `StudioColors` 로 지금 테마의 색을 읽는다. 차/폰 글자 크기), 크기 토큰 `StudioSizes`(누르는 것의 최소 높이 차 64dp·폰 48dp 등), 두 앱이 똑같이 쓰는 구역 `RingLightSection`(지금 값·밝기)·`PresetSection`·`ColorSection`(색상환·헥사·흰 빛 톤)·`CarScreenSection`(차에서는 패널의 구역, 폰에서는 카드로 묶임), 밝기 슬라이더(`LevelSlider`: 트랙이 실제 빛 색, 손잡이 속이 지금 빛), 색상환(`ColorWheel`·`LightColorPicker`), `StudioChip`·`Segmented`·`ToggleRow`·`StatusPill`·`LightReadout`(색 견본 + "7000K · 60%" + 느낌 이름)·`StudioCard`·`StepRow`, 조명 값 라벨(`LightLabels`), 앱 아이콘(초승달 `ic_selene`, 두 앱 공용). Compose 를 모르는 `shared` 와 전송을 모르는 `ui` 를 나눈다 |
+| `car/` | Pleos Connect 차량 앱. 기어 P·N 게이트(D·R 이면 경고 3초 후 종료, 실행 시점에도 같음), 링라이트(테두리 두께 = 밝기, 색온도/무드 색. 안쪽 내용은 밝기와 상관없이 제자리), 폰 화면 모니터, 조명 패널(세로 영상이면 모니터 양옆 두 칸, 가로 영상이면 오른쪽 한 칸: `PanelLayout`·`StudioPanel`. 프리셋 기본 4종 + 사용자 저장·삭제, 앰비언트 연동; 실내등·독서등은 프리셋으로만 바뀌고 종료 시 원래 값 복원. 원래 값은 `OriginalStore` 에 저장해 비정상 종료 뒤 다음 실행이 이어받아 복원), 풀 라이트 모드(패널 맨 아래에 늘 보이는 버튼), 공유 상태 안내(공유 앱이 가려지면 오버레이, 공유가 끝나면 문구), 다이얼(`DialTarget`), 폰 연결(`PhoneLink`: USB 액세서리 → TCP[테더링 게이트웨이 → NSD → 10.0.2.2]) |
+| `phone/` | 폰 동반 앱. `MirrorService`(MediaProjection → 정사각 1200px 가상 디스플레이에서 폰 화면 영역(`MirrorFit`)만 잘라 15fps JPEG → 세션), `StudioLink`(TCP 8080 서버 + USB 액세서리 세션), 차 패널과 같은 구역(링라이트·프리셋·색·차 화면: 차가 붙어 있으면 다이얼 대상·앰비언트 연동·풀 라이트·차 테마를 바꾸고 프리셋을 저장·삭제)·알림 버튼(따뜻하게·차갑게·중지)·플로팅 컨트롤(항상 어두운 판), 공유 상태(STATUS: 앱 가려짐·공유 끝남) 전송과 '공유가 끝났어요' 알림(탭하면 재시작), NSD `_selene._tcp` 광고. 디버그 빌드에만 `DebugReceiver`(adb 로 조명 값·JPEG 품질·한 변 변경)와 `CodecBench`(같은 그림을 JPEG 와 H.264 로 인코드·디코드해 비교) |
 | `tools/` | `mock_phone.py`(가짜 폰: 차량 앱 단독 검증), `mock_car.py`(가짜 차: 폰 앱 단독 검증). 표준 라이브러리만 |
 
 연결 방향은 **차 → 폰**(폰이 listen). 에뮬레이터 NAT 에서 바깥으로 나가는 접속만 되고, USB 테더링에서도 폰이 게이트웨이라 자연스럽다. 메시지는 전송 계층과 분리돼 있어 TCP 든 USB 액세서리든 앱 로직이 같다. 계약과 동작 규칙의 기준은 [../plan/spec.md](../plan/spec.md).
@@ -84,7 +84,7 @@ release APK 는 `apk/` 에 둔다. ⚠️ 아직 없다([../plan/work-plan.md](.
 
 ```sh
 export JAVA_HOME=$(/usr/libexec/java_home -v 17)   # Temurin 17
-./gradlew assembleDebug testDebugUnitTest            # 단위 테스트 shared 49 · ui 12 · car 13 · phone 5
+./gradlew assembleDebug testDebugUnitTest            # 단위 테스트 shared 54 · ui 12 · car 19 · phone 5
 ./gradlew assembleRelease                            # keystore.properties 가 없으면 debug 키로 서명(keystore.properties.example)
 ```
 
@@ -94,10 +94,11 @@ export JAVA_HOME=$(/usr/libexec/java_home -v 17)   # Temurin 17
 
 | 영역 | 상태 |
 |---|---|
-| 단위 테스트 | ✅ 79개 |
+| 단위 테스트 | ✅ 90개 |
 | 차량 앱: 조명 읽기·설정·복원(기어 D 즉시 복원, 비정상 종료 뒤 복원), 기어 게이트 | ✅ Pleos 에뮬레이터 2.1.0 |
 | 미러링(전체 화면·앱 하나, 회전, 화면 잠금, 재접속), 공유 상태 안내 | ✅ 폰 에뮬레이터 ↔ Pleos 에뮬레이터 |
 | 조명 값·앱 상태 양방향 동기화(슬라이더·색상환·헥사·알림 버튼·플로팅·프리셋·테마) | ✅ 같음 |
+| 다이얼 회전(밝기·흰 빛 톤), 차 화면 배치(세로 영상은 패널이 양옆·스크롤 없음, 가로 영상은 한 칸), 풀 라이트, 앱 아이콘 | ✅ Pleos 에뮬레이터 2.1.0 (2026-11-13) |
 | 프레임 속도 | ⚠️ 에뮬레이터에서 카메라 프리뷰 4~6fps. 병목이 에뮬레이터라 실기기에서 다시 잰다 |
 | 실기기(실제 폰), 실제 라이브 앱 | ⬜ |
 | 실차 연결 경로(USB 테더링, USB 액세서리, NSD) | ⬜ |

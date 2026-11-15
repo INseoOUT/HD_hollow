@@ -32,7 +32,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -45,6 +44,7 @@ import androidx.core.content.ContextCompat
 import com.hdhollow.studio.shared.LightingParams
 import com.hdhollow.studio.shared.StudioState
 import com.hdhollow.studio.ui.CarScreenSection
+import com.hdhollow.studio.ui.ColorSection
 import com.hdhollow.studio.ui.PresetSection
 import com.hdhollow.studio.ui.RingLightSection
 import com.hdhollow.studio.ui.StatusPill
@@ -52,6 +52,7 @@ import com.hdhollow.studio.ui.StepRow
 import com.hdhollow.studio.ui.StudioCard
 import com.hdhollow.studio.ui.StudioColors
 import com.hdhollow.studio.ui.StudioTheme
+import com.hdhollow.studio.ui.ToggleRow
 
 /**
  * 폰 동반 앱. 화면 공유 동의를 받아 [MirrorService] 를 띄우고, 상태와 조명·프리셋·차 화면 상태(차 패널과 같은 구역)를 보여 준다.
@@ -174,13 +175,11 @@ private fun PhoneScreen(
         ShareCard(status, onStart, onStop)
         if (!status.running) HowToCard()
 
-        // 아래 세 구역은 차 패널과 같은 컴포넌트·같은 순서다(poc/ui StudioSections)
+        // 아래 네 구역은 차 패널과 같은 컴포넌트·같은 순서다(poc/ui StudioSections): 지금 값·밝기 → 프리셋 → 색 → 차 화면
         val linked = status.clients > 0
         RingLightSection(
             lighting,
             onLevel = { v -> MirrorService.updateLighting { it.copy(level = v) } },
-            onKelvin = { k -> MirrorService.updateLighting { it.copy(kelvin = k, preset = null) } },
-            onMood = { name -> MirrorService.updateLighting { it.copy(preset = name) } },
             note = "차와 같은 값",
         )
         PresetSection(
@@ -190,22 +189,18 @@ private fun PhoneScreen(
             onDelete = MirrorService::deleteScene,
             canEdit = linked,
         )
+        ColorSection(
+            lighting,
+            onKelvin = { k -> MirrorService.updateLighting { it.copy(kelvin = k, preset = null) } },
+            onMood = { hex -> MirrorService.updateLighting { it.copy(preset = hex) } },
+        )
         CarScreenSection(
             studio, onChange = { s -> MirrorService.updateStudio { s } },
             enabled = linked, note = if (linked) "차와 같은 값" else "차와 연결되면 바꿀 수 있습니다",
         )
 
         StudioCard(padding = 16.dp) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f).padding(end = 12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("플로팅 컨트롤", color = StudioColors.Text, style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        "촬영 앱 위에 작은 조절판을 띄웁니다. 기본인 \"앱 하나만 공유\"에서는 차에 비치지 않습니다.",
-                        color = StudioColors.TextDim, style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-                Switch(floating, onFloating)
-            }
+            ToggleRow("플로팅 컨트롤", "촬영 앱 위에 작은 조절판을 띄웁니다. 기본인 \"앱 하나만 공유\"에서는 차에 비치지 않습니다.", floating, onFloating)
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -230,7 +225,7 @@ private fun ShareCard(status: MirrorService.Status, onStart: () -> Unit, onStop:
                     when {
                         !status.running -> "화면 공유를 시작하면 차 화면 가운데에 폰 화면이 뜹니다"
                         status.frame.isBlank() -> "차가 연결되면 송출이 시작됩니다"
-                        else -> "${status.fps} fps · ${status.frame}"
+                        else -> "차 화면으로 보내는 중 · 초당 ${status.fps}장"
                     },
                     color = StudioColors.TextDim, style = MaterialTheme.typography.bodySmall,
                 )
@@ -255,7 +250,7 @@ private fun ShareCard(status: MirrorService.Status, onStart: () -> Unit, onStop:
 private fun HowToCard() {
     StudioCard {
         Text("이렇게 쓰세요", color = StudioColors.TextDim, style = MaterialTheme.typography.titleSmall)
-        StepRow(1, "차와 연결", "USB 또는 같은 네트워크. 차 화면에서 Selene 를 엽니다")
+        StepRow(1, "차와 연결", "USB 또는 같은 네트워크. 차 화면에서 Selene를 엽니다")
         StepRow(2, "화면 공유 시작", "동의 화면에서 \"앱 하나만 공유\"를 고릅니다")
         StepRow(3, "쓰던 카메라·라이브 앱 선택", "그 앱 화면만 차에 뜨고 알림·다른 앱은 보이지 않습니다. 앱을 바꿔 가며 쓸 때만 \"전체 화면\"")
     }

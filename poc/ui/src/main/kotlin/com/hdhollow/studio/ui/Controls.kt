@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
@@ -53,15 +54,17 @@ fun StudioChip(
         danger -> StudioColors.Danger
         else -> StudioColors.Text
     }
+    // 높이는 누르는 것의 최소 높이(StudioSizes.Touch)로 맞춘다. 글자가 작아도 누를 자리는 그대로다
     Row(
         modifier
+            .heightIn(min = StudioSizes.Touch)
             .clip(CircleShape)
             .background(bg)
             .then(if (outlined) Modifier.border(1.dp, StudioColors.Line, CircleShape) else Modifier)
             .selectable(selected, enabled = enabled, role = Role.Button, onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .padding(horizontal = StudioSizes.ChipInset),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         leading?.invoke()
         Text(text, color = fg, style = MaterialTheme.typography.labelLarge, maxLines = 1)
@@ -70,22 +73,22 @@ fun StudioChip(
 
 /** 작은 색 점. 프리셋 칩 안, 앰비언트 줄 앞에 쓴다. [ring] 은 바탕과 구분되는 테두리. */
 @Composable
-fun ColorDot(color: Color, size: Dp = 14.dp, modifier: Modifier = Modifier, ring: Color = StudioColors.SwatchRing) {
+fun ColorDot(color: Color, size: Dp = StudioSizes.Dot, modifier: Modifier = Modifier, ring: Color = StudioColors.SwatchRing) {
     Box(modifier.size(size).background(color, CircleShape).border(1.dp, ring, CircleShape))
 }
 
 /** 둘 이상 중 하나를 고르는 분할 버튼(다이얼 대상 등). */
 @Composable
 fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
-    Row(modifier.clip(RoundedCornerShape(12.dp)).background(StudioColors.SurfaceHigh).padding(4.dp)) {
+    Row(modifier.clip(RoundedCornerShape(16.dp)).background(StudioColors.SurfaceHigh).padding(4.dp)) {
         options.forEachIndexed { i, label ->
             val on = i == selected
             Box(
                 Modifier.weight(1f)
-                    .clip(RoundedCornerShape(9.dp))
+                    .heightIn(min = StudioSizes.Touch - 8.dp)
+                    .clip(RoundedCornerShape(12.dp))
                     .background(if (on) StudioColors.Text else Color.Transparent)
-                    .selectable(on, enabled = enabled, role = Role.RadioButton) { onSelect(i) }
-                    .padding(vertical = 10.dp),
+                    .selectable(on, enabled = enabled, role = Role.RadioButton) { onSelect(i) },
                 contentAlignment = Alignment.Center,
             ) {
                 Text(label, color = if (on) StudioColors.Ink else StudioColors.TextDim, style = MaterialTheme.typography.labelLarge, maxLines = 1)
@@ -118,7 +121,7 @@ fun LabelValue(label: String, value: String, modifier: Modifier = Modifier) {
 
 /** 지금 조명 값 한눈에: 빛나는 색 견본, "7000K · 60%", 느낌 이름. */
 @Composable
-fun LightReadout(p: LightingParams, modifier: Modifier = Modifier, swatch: Dp = 56.dp) {
+fun LightReadout(p: LightingParams, modifier: Modifier = Modifier, swatch: Dp = StudioSizes.Swatch) {
     val color = Color(ColorTemp.colorFor(p))
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(

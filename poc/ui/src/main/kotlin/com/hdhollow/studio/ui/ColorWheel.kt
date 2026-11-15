@@ -71,9 +71,10 @@ private val HUES: List<Color> = (0 until 360).map { Color(ColorTemp.hsvToArgb(it
  * [selected] 가 있으면 그 색의 색상·채도 자리에 손잡이를 그린다.
  */
 @Composable
-fun ColorWheel(selected: Int?, onPick: (Int) -> Unit, modifier: Modifier = Modifier, size: Dp = 168.dp) {
+fun ColorWheel(selected: Int?, onPick: (Int) -> Unit, modifier: Modifier = Modifier, size: Dp = StudioSizes.Wheel) {
     val pick by rememberUpdatedState(onPick)
     val ring = StudioColors.SwatchRing
+    val knob = StudioSizes.Thumb / 2.5f // 손잡이 반지름. 슬라이더 손잡이와 같이 차에서 더 크다
     Canvas(
         modifier.size(size)
             .semantics { contentDescription = "무드 색 색상환" }
@@ -103,9 +104,9 @@ fun ColorWheel(selected: Int?, onPick: (Int) -> Unit, modifier: Modifier = Modif
             val hsv = ColorTemp.argbToHsv(selected)
             val (dx, dy) = WheelMath.position(hsv[0], hsv[1], r)
             val c = Offset(center.x + dx, center.y + dy)
-            drawCircle(Color.White, 11.dp.toPx(), c)
-            drawCircle(Color(ColorTemp.hsvToArgb(hsv[0], hsv[1])), 8.dp.toPx(), c)
-            drawCircle(Color.Black.copy(alpha = 0.35f), 11.dp.toPx(), c, style = Stroke(1.dp.toPx()))
+            drawCircle(Color.White, knob.toPx(), c)
+            drawCircle(Color(ColorTemp.hsvToArgb(hsv[0], hsv[1])), knob.toPx() * 0.72f, c)
+            drawCircle(Color.Black.copy(alpha = 0.35f), knob.toPx(), c, style = Stroke(1.dp.toPx()))
         }
     }
 }
@@ -142,18 +143,25 @@ fun HexField(hex: String?, onHex: (String) -> Unit, modifier: Modifier = Modifie
 /**
  * 조명 색 고르기: 색상환 + 헥사 입력(무드 색) + 흰 빛 톤 칩 셋(색온도). 차 패널과 폰 화면이 같이 쓴다.
  * 색상환·헥사로 고르면 [onMood] 에 "#RRGGBB", 칩을 누르면 [onKelvin] 에 그 색온도(무드 색은 풀린다).
+ * [showHex] 가 false 면 헥사 입력을 뺀다(차: 화면 키보드로 여섯 자리를 칠 일이 드물다. 헥사는 폰에서 넣는다).
  */
 @Composable
-fun LightColorPicker(p: LightingParams, onMood: (String) -> Unit, onKelvin: (Int) -> Unit, modifier: Modifier = Modifier) {
+fun LightColorPicker(
+    p: LightingParams,
+    onMood: (String) -> Unit,
+    onKelvin: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+    showHex: Boolean = true,
+) {
     val argb = p.preset?.let(ColorTemp::moodArgb)
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
         ColorWheel(argb, { onMood(ColorTemp.toHex(it)) })
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            HexField(argb?.let(ColorTemp::toHex), onMood, Modifier.fillMaxWidth())
+            if (showHex) HexField(argb?.let(ColorTemp::toHex), onMood, Modifier.fillMaxWidth())
             LightingParams.WHITE_TONES.forEach { k ->
                 val on = p.preset == null && p.kelvin == k
                 StudioChip(
-                    LightLabels.whiteTone(k), selected = on,
+                    LightLabels.whiteTone(k), selected = on, modifier = Modifier.fillMaxWidth(),
                     leading = { ColorDot(Color(ColorTemp.kelvinToArgb(k)), ring = if (on) StudioColors.Ink.copy(alpha = 0.35f) else StudioColors.SwatchRing) },
                     onClick = { onKelvin(k) },
                 )

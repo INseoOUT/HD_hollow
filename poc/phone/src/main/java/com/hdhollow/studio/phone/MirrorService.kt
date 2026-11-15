@@ -355,9 +355,9 @@ class MirrorService : Service() {
             this, 0, Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_IMMUTABLE
         )
         return NotificationCompat.Builder(this, CHANNEL)
-            .setSmallIcon(android.R.drawable.ic_menu_camera)
+            .setSmallIcon(com.hdhollow.studio.ui.R.drawable.ic_selene_small)
             .setContentTitle("차량으로 화면 송출 중")
-            .setContentText("Selene 가 폰 화면을 차 화면에 보여 줍니다")
+            .setContentText("Selene가 폰 화면을 차 화면에 보여 줍니다")
             .setOngoing(true)
             .setContentIntent(open)
             .addAction(0, "따뜻하게", servicePending(ACTION_WARMER, 2))
@@ -378,7 +378,7 @@ class MirrorService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         val n = NotificationCompat.Builder(this, CHANNEL)
-            .setSmallIcon(android.R.drawable.ic_menu_camera)
+            .setSmallIcon(com.hdhollow.studio.ui.R.drawable.ic_selene_small)
             .setContentTitle("화면 공유가 끝났어요")
             .setContentText("공유하던 앱이 닫혔거나 시스템이 공유를 멈췄습니다. 탭하면 다시 시작합니다")
             .setContentIntent(open)

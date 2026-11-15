@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 알림의 작은 아이콘(24dp, 흰색 실루엣): 초승달. 모양은 ic_selene_foreground 와 같고 칸을 채우게 키웠다 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="2.1"
+        android:scaleY="2.1"
+        android:translateX="6"
+        android:translateY="-4">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M53.75,32 A22,22 0 1,0 75.05,60.4 A18,18 0 1,1 53.75,32 Z" />
+    </group>
+</vector>
