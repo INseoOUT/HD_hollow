@@ -37,7 +37,44 @@ class LinkSessionTest {
         override fun onLight(params: LightingParams) { lastLight.set(params); light.countDown() }
         override fun onFrame(jpeg: ByteArray) { lastFrame.set(jpeg); frame.countDown() }
         override fun onStatus(status: ShareStatus) { lastStatus.set(status); this.status.countDown() }
+        val state = CountDownLatch(1)
+        val lastState = AtomicReference<StudioState>()
+        val command = CountDownLatch(1)
+        val lastCommand = AtomicReference<StudioCommand>()
+        override fun onState(state: StudioState) { lastState.set(state); this.state.countDown() }
+        override fun onCommand(command: StudioCommand) { lastCommand.set(command); this.command.countDown() }
         override fun onClosed(reason: String) { this.reason.set(reason); closed.countDown() }
+    }
+
+    @Test(timeout = 5_000)
+    fun `STATE 는 양방향으로, COMMAND 는 폰에서 차로 전달된다`() {
+        val p = Pair()
+        val phone = Recorder()
+        val car = Recorder()
+        val phoneSession = LinkSession(p.a, Hello(Protocol.ROLE_PHONE, 1080, 2400), phone)
+        val carSession = LinkSession(p.b, Hello(Protocol.ROLE_CAR, 1680, 1210), car)
+        phoneSession.start()
+        carSession.start()
+        assertTrue(phone.hello.await(2, TimeUnit.SECONDS))
+        assertTrue(car.hello.await(2, TimeUnit.SECONDS))
+
+        val scene = Scene("user-1", "내 프리셋 1", 0.4f, kelvin = 4300)
+        assertTrue(carSession.sendState(StudioState(theme = StudioState.THEME_NAVY, userScenes = listOf(scene))))
+        assertTrue(phone.state.await(2, TimeUnit.SECONDS))
+        assertEquals(StudioState.THEME_NAVY, phone.lastState.get().theme)
+        assertEquals(listOf(scene), phone.lastState.get().userScenes)
+
+        assertTrue(phoneSession.sendState(StudioState(fullLight = true, src = Protocol.ROLE_PHONE)))
+        assertTrue(car.state.await(2, TimeUnit.SECONDS))
+        assertTrue(car.lastState.get().fullLight)
+        assertEquals(Protocol.ROLE_PHONE, car.lastState.get().src)
+
+        assertTrue(phoneSession.sendCommand(StudioCommand(StudioCommand.SCENE_APPLY, "warm")))
+        assertTrue(car.command.await(2, TimeUnit.SECONDS))
+        assertEquals(StudioCommand(StudioCommand.SCENE_APPLY, "warm"), car.lastCommand.get())
+
+        phoneSession.close()
+        carSession.close()
     }
 
     @Test(timeout = 5_000)
@@ -119,7 +156,7 @@ class LinkSessionTest {
         assertTrue(carSession.sendLight(LightingParams(kelvin = 4000, src = Protocol.ROLE_CAR, ts = 10_000)))
         assertTrue(phone.light.await(2, TimeUnit.SECONDS))
         val back = phone.lastLight.get().ts
-        assertTrue("차 ts 10000 - 5초 = 약 5000 이어야 한다: $back", back in 4_500L..5_000L)
+        assertTrue("차 ts 10000 - 5초 = 약 5000 이어야 한다(보정은 받는 쪽이 늦게 읽어 0 이상): $back", back in 5_000L..5_500L)
 
         phoneSession.close()
         carSession.close()

@@ -59,4 +59,39 @@ class ColorTempTest {
         assertEquals(ColorTemp.kelvinToArgb(3500), ColorTemp.colorFor(LightingParams(kelvin = 3500)))
         assertEquals(LightingParams.PRESETS.toSet(), ColorTemp.MOOD_COLORS.keys)
     }
+
+    @Test
+    fun `헥사를 읽고 쓴다`() {
+        assertEquals(0xFFFF8040.toInt(), ColorTemp.parseHex("#FF8040"))
+        assertEquals(0xFFFF8040.toInt(), ColorTemp.parseHex("ff8040"))
+        assertEquals(0xFFFFAA00.toInt(), ColorTemp.parseHex(" #fa0 "))
+        assertEquals("#FF8040", ColorTemp.toHex(0xFFFF8040.toInt()))
+        assertEquals("#00000A", ColorTemp.toHex(0x0A))
+        listOf("", "#", "#12345", "#1234567", "GG0000", "cyan").forEach { assertEquals(it, null, ColorTemp.parseHex(it)) }
+    }
+
+    @Test
+    fun `무드 색은 이름이나 헥사`() {
+        assertEquals(ColorTemp.MOOD_COLORS["cyan"], ColorTemp.moodArgb("cyan"))
+        assertEquals(0xFF12AB34.toInt(), ColorTemp.moodArgb("#12AB34"))
+        assertEquals(null, ColorTemp.moodArgb("neon"))
+        assertEquals(0xFF12AB34.toInt(), ColorTemp.colorFor(LightingParams(kelvin = 3000, preset = "#12AB34")))
+    }
+
+    @Test
+    fun `색상환 좌표와 색을 오간다`() {
+        assertEquals(0xFFFF0000.toInt(), ColorTemp.hsvToArgb(0f, 1f))
+        assertEquals(0xFF00FF00.toInt(), ColorTemp.hsvToArgb(120f, 1f))
+        assertEquals(0xFF0000FF.toInt(), ColorTemp.hsvToArgb(240f, 1f))
+        assertEquals(0xFFFF0000.toInt(), ColorTemp.hsvToArgb(360f, 1f))
+        assertEquals("가운데는 흰색", 0xFFFFFFFF.toInt(), ColorTemp.hsvToArgb(200f, 0f))
+        assertEquals(0xFF800000.toInt(), ColorTemp.hsvToArgb(0f, 1f, 0.5f))
+        for (argb in listOf(0xFFFF8040.toInt(), 0xFF2F6BFF.toInt(), 0xFF123456.toInt(), 0xFF808080.toInt(), 0xFF000000.toInt())) {
+            val hsv = ColorTemp.argbToHsv(argb)
+            val back = ColorTemp.hsvToArgb(hsv[0], hsv[1], hsv[2])
+            listOf(ColorTemp::red, ColorTemp::green, ColorTemp::blue).forEach { ch ->
+                assertTrue("${ColorTemp.toHex(argb)} → ${ColorTemp.toHex(back)}", kotlin.math.abs(ch(argb) - ch(back)) <= 1)
+            }
+        }
+    }
 }

@@ -76,4 +76,13 @@ class LightingParamsTest {
         assertFalse(LightingParams(src = Protocol.ROLE_CAR, ts = 5).supersedes(LightingParams(src = Protocol.ROLE_CAR, ts = 5)))
         assertFalse(default.supersedes(default))
     }
+
+    @Test
+    fun `헥사 무드 색은 대문자 표준 꼴로 오간다`() {
+        assertEquals("#FF8040", LightingParams(preset = "ff8040").normalized().preset)
+        assertEquals("#FFAA00", LightingParams.normalizePreset("#fa0"))
+        assertNull(LightingParams.normalizePreset("#12345"))
+        val p = LightingParams(level = 0.4f, preset = "#12AB34", src = Protocol.ROLE_PHONE, ts = 5L)
+        assertEquals(p, LightingParams.fromJson(p.toJson()))
+    }
 }

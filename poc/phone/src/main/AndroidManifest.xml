@@ -14,7 +14,9 @@
     <uses-feature android:name="android.hardware.usb.accessory" android:required="false" />
 
     <application
-        android:label="Car Studio"
+        android:label="Selene"
+        android:icon="@mipmap/ic_selene"
+        android:roundIcon="@mipmap/ic_selene"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
         <activity
             android:name=".MainActivity"

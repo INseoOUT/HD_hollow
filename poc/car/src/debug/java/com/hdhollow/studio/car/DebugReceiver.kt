@@ -7,7 +7,7 @@ import android.util.Log
 
 /**
  * 디버그 빌드 전용 명령 수신기(테스트 자동화). 화면이 떠 있을 때만 동작한다(DebugHooks).
- *   adb shell am broadcast -n com.hdhollow.studio.car/.DebugReceiver --ei kelvin 3300 --ef level 0.9 --es preset cyan|none --es scene "웜 뷰티" --ez full true
+ *   adb shell am broadcast -n com.hdhollow.studio.car/.DebugReceiver --ei kelvin 3300 --ef level 0.9 --es preset cyan|none --es scene "웜 뷰티" --ez full true --es theme black|greige|navy
  */
 class DebugReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -18,7 +18,8 @@ class DebugReceiver : BroadcastReceiver() {
         if (e.containsKey("level")) light.level = e.getFloat("level")
         if (e.containsKey("preset")) light.choosePreset(e.getString("preset")?.takeIf { it != "none" })
         if (e.containsKey("full")) light.fullLight = e.getBoolean("full")
-        Log.d(TAG, "적용 ${light.params("car")} full=${light.fullLight}")
+        e.getString("theme")?.let { light.theme = it }
+        Log.d(TAG, "적용 ${light.params("car")} full=${light.fullLight} theme=${light.theme}")
     }
 
     companion object {

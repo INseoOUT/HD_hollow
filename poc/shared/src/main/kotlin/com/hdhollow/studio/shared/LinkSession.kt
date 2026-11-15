@@ -15,6 +15,7 @@ import kotlin.concurrent.thread
  * - 받은 메시지는 [Listener] 로 넘긴다. HELLO 의 버전이 다르면 끊는다.
  * - [Protocol.IDLE_TIMEOUT_MS] 동안 아무것도 안 오면 끊는다. 끊김은 [Listener.onClosed] 한 번으로 알린다.
  * - 쓰기는 한 번에 하나(잠금). FRAME 은 [offerFrame] 으로 넣되, 앞 프레임을 아직 쓰는 중이면 버린다(최신 프레임만).
+ * - STATE(양방향)·COMMAND(폰 → 차)는 JSON 을 풀어 그대로 넘긴다.
  * - LIGHT 의 ts 는 상대 HELLO 의 now 와 내 시계의 차이만큼 보정해 넘긴다(어느 쪽이 최신인지 가리는 비교용).
  *
  * 외부 의존성 없이 스레드로 만든다(코루틴은 shared 에 없다).
@@ -30,6 +31,8 @@ class LinkSession(
         fun onFrame(jpeg: ByteArray) {}
         fun onLight(params: LightingParams) {}
         fun onStatus(status: ShareStatus) {}
+        fun onState(state: StudioState) {}
+        fun onCommand(command: StudioCommand) {}
         fun onClosed(reason: String) {}
     }
 
@@ -65,6 +68,14 @@ class LinkSession(
     /** 폰 → 차 공유 상태. 닫혔으면 false. */
     fun sendStatus(status: ShareStatus): Boolean =
         enqueue(Protocol.TYPE_STATUS, status.toJson().toByteArray(Charsets.UTF_8), "status")
+
+    /** 양방향 스튜디오 상태. 닫혔으면 false. */
+    fun sendState(state: StudioState): Boolean =
+        enqueue(Protocol.TYPE_STATE, state.toJson().toByteArray(Charsets.UTF_8), "state")
+
+    /** 폰 → 차 명령. 닫혔으면 false. */
+    fun sendCommand(command: StudioCommand): Boolean =
+        enqueue(Protocol.TYPE_COMMAND, command.toJson().toByteArray(Charsets.UTF_8), "command")
 
     private fun enqueue(type: Int, payload: ByteArray, what: String): Boolean {
         if (closed.get()) return false
@@ -125,6 +136,8 @@ class LinkSession(
                     Protocol.TYPE_LIGHT -> LightingParams.fromJson(String(m.payload, Charsets.UTF_8))
                         ?.let { p -> listener.onLight(if (p.ts > 0) p.copy(ts = p.ts + clockOffset) else p) }
                     Protocol.TYPE_STATUS -> ShareStatus.fromJson(String(m.payload, Charsets.UTF_8))?.let(listener::onStatus)
+                    Protocol.TYPE_STATE -> StudioState.fromJson(String(m.payload, Charsets.UTF_8))?.let(listener::onState)
+                    Protocol.TYPE_COMMAND -> StudioCommand.fromJson(String(m.payload, Charsets.UTF_8))?.let(listener::onCommand)
                     Protocol.TYPE_PING -> Unit
                     else -> Unit // 모르는 type 은 버린다(앞으로 호환)
                 }

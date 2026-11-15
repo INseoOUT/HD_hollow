@@ -51,7 +51,8 @@ android {
 }
 
 dependencies {
-    implementation(project(":shared")) // 폰↔차 계약: 메시지 코덱, 조명 값, 색 변환 (plan/work-plan.md 2절)
+    implementation(project(":shared")) // 폰↔차 계약: 메시지 코덱, 조명 값, 색 변환 (plan/spec.md 2절)
+    implementation(project(":ui")) // 디자인 시스템: 테마·그라데이션 슬라이더·칩·조명 값 라벨
     implementation(libs.vehicle.sdk)
     implementation(libs.car.ui.lib) // FocusArea·rotate-directly: 다이얼 회전을 앱으로 받기 위해
     implementation(libs.androidx.core.ktx)

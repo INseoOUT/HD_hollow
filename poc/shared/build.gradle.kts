@@ -1,5 +1,5 @@
 // 폰 앱과 차량 앱이 같이 쓰는 코드: 메시지 코덱(HELLO/FRAME/LIGHT/PING), LightingParams JSON, 켈빈→ARGB 변환, 포트·상수.
-// 계약은 plan/work-plan.md 2절. 외부 의존성 없음(JSON 은 플랫폼 org.json). 의존성 추가는 이미지 재빌드가 필요하다(.sprintify/agent.Dockerfile).
+// 계약은 plan/spec.md 2절. 외부 의존성 없음(JSON 은 플랫폼 org.json). 의존성 추가는 이미지 재빌드가 필요하다(.sprintify/agent.Dockerfile).
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)

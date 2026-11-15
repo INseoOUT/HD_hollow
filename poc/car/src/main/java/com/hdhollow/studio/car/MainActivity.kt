@@ -1,24 +1,38 @@
 package com.hdhollow.studio.car
 
+import android.graphics.Bitmap
 import android.os.Bundle
 import android.widget.FrameLayout
 import androidx.activity.ComponentActivity
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,14 +42,23 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.lifecycleScope
 import com.android.car.ui.FocusArea
 import com.android.car.ui.FocusParkingView
+import com.hdhollow.studio.shared.EchoGuard
 import com.hdhollow.studio.shared.LightingParams
 import com.hdhollow.studio.shared.Protocol
+import com.hdhollow.studio.shared.Scene
+import com.hdhollow.studio.shared.ShareStatus
+import com.hdhollow.studio.shared.StudioCommand
+import com.hdhollow.studio.shared.StudioState
+import com.hdhollow.studio.ui.CarThemes
+import com.hdhollow.studio.ui.LightLabels
+import com.hdhollow.studio.ui.StudioColors
+import com.hdhollow.studio.ui.StudioTheme
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -51,6 +74,9 @@ import kotlinx.coroutines.launch
 /** 가장자리 조명 안쪽 창의 모서리 반지름. 조명이 모서리에서 부드럽게 감싸도록. */
 private val INNER_RADIUS = 40.dp
 
+/** 풀 라이트 안내가 떠 있는 시간. */
+private const val FULL_LIGHT_HINT_MS = 4000L
+
 class MainActivity : ComponentActivity() {
 
     private lateinit var studio: StudioVehicle
@@ -58,7 +84,8 @@ class MainActivity : ComponentActivity() {
     private val light = StudioLight()
     private lateinit var presets: ScenePresets
     private val exiting = MutableStateFlow(false)
-    @Volatile private var lastIncoming: LightingParams? = null // 폰에서 온 마지막 값. 되돌려 보내지 않기 위해
+    private val lightEcho = EchoGuard<LightingParams> { a, b -> a.sameLight(b) } // 폰에서 온 조명 값을 되돌려 보내지 않기 위해
+    private val stateEcho = EchoGuard<StudioState> { a, b -> a.sameState(b) } // 폰에서 온 앱 상태. 같은 이유
 
     @OptIn(FlowPreview::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -94,7 +121,7 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             link.incomingLight.collect { p ->
                 if (p.src != Protocol.ROLE_CAR && p.supersedes(light.params(Protocol.ROLE_CAR))) {
-                    lastIncoming = p
+                    lightEcho.received(p)
                     light.apply(p)
                 }
             }
@@ -114,24 +141,54 @@ class MainActivity : ComponentActivity() {
             combine(mine, areas, active, link.connected) { (p, linked), _, ok, _ -> Triple(p, linked, ok) }
                 .collect { (p, linked, ok) ->
                     if (!ok) return@collect
-                    if (lastIncoming?.sameLight(p) != true) link.sendLight(p)
+                    if (lightEcho.shouldSend(p)) link.sendLight(p)
                     if (linked) studio.syncAmbient(p.level, LightLogic.argb(p))
                 }
+        }
+
+        // 차 화면 테마는 다음 실행에도 이어 쓴다(풀 라이트·다이얼 대상·앰비언트 연동은 실행마다 기본값)
+        lightPrefs.getString(KEY_THEME, null)?.takeIf { it in StudioState.THEMES }?.let { light.theme = it }
+        lifecycleScope.launch { snapshotFlow { light.theme }.collect { lightPrefs.edit().putString(KEY_THEME, it).apply() } }
+
+        // 앱 상태(STATE): 차가 기준. 폰이 붙으면 지금 상태를 보내고, 바뀔 때마다 보낸다(폰에서 온 값은 되돌려 보내지 않음)
+        lifecycleScope.launch {
+            val mine = combine(snapshotFlow { light.state(emptyList()) }, presets.user) { s, scenes -> s.copy(userScenes = scenes) }
+            combine(mine, link.connected) { s, c -> s to c }.collect { (s, c) ->
+                if (!c) {
+                    stateEcho.reset() // 다시 붙으면 무조건 한 번 보낸다
+                } else if (stateEcho.shouldSend(s)) {
+                    link.sendState(s)
+                }
+            }
+        }
+        // 폰에서 바꾼 앱 상태. 사용자 프리셋 목록은 차가 기준이라 내 목록을 붙여 비교한다
+        lifecycleScope.launch {
+            link.incomingState.collect { s ->
+                if (s.src == Protocol.ROLE_CAR) return@collect
+                stateEcho.received(s.copy(userScenes = presets.user.value))
+                light.apply(s)
+            }
+        }
+        // 폰의 부탁: 프리셋 적용(실내등·독서등 포함. 패널에서 누른 것과 같은 경로)·저장·삭제
+        lifecycleScope.launch {
+            link.commands.collect { c ->
+                when (c.cmd) {
+                    StudioCommand.SCENE_APPLY -> presets.all.firstOrNull { it.id == c.id }?.let(::applyScene)
+                    StudioCommand.SCENE_SAVE -> presets.saveCurrent(light)
+                    StudioCommand.SCENE_DELETE -> c.id?.let(presets::delete)
+                }
+            }
         }
 
         // 디버그 빌드의 DebugReceiver(adb 로 조명 값·프리셋 변경)용 고리
         DebugHooks.light = light
         DebugHooks.applyScene = { name ->
-            presets.all.firstOrNull { it.name == name }?.let { scene ->
-                Scenes.applyLight(scene, light)
-                Scenes.applyVehicle(scene, studio.state.value.lighting, studio)
-                true
-            } ?: false
+            presets.all.firstOrNull { it.name == name }?.let { applyScene(it); true } ?: false
         }
 
         val dial = DialTarget(this, onRotate = light::rotate, onPress = { light.dialColor = !light.dialColor })
         val screen = ComposeView(this).apply {
-            setContent { MaterialTheme(colorScheme = darkColorScheme()) { StudioScreen(studio, light, link, presets, exiting) } }
+            setContent { StudioTheme(car = true, palette = CarThemes.palette(light.theme)) { StudioScreen(studio, light, link, presets, exiting) } }
         }
         // RotaryService 요건: 창마다 FocusParkingView(맨 앞, FocusArea 밖) + 포커스 대상은 FocusArea 안.
         // 하나라도 없으면 회전을 버리거나 포커스를 Driving view로 넘긴다
@@ -143,6 +200,11 @@ class MainActivity : ComponentActivity() {
             }, -1, -1)
         })
         dial.requestFocus()
+    }
+
+    private fun applyScene(scene: Scene) {
+        CarScenes.applyLight(scene, light)
+        CarScenes.applyVehicle(scene, studio.state.value.lighting, studio)
     }
 
     override fun onResume() {
@@ -165,6 +227,7 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         private const val KEY_LAST_LIGHT = "last"
+        private const val KEY_THEME = "theme"
     }
 }
 
@@ -185,69 +248,145 @@ private fun StudioScreen(
             .background(edgeColor) // 바깥 = 링라이트
     ) {
         if (light.fullLight) {
-            // 풀 라이트(C13): 모니터·패널을 숨기고 앱 영역 전체를 조명으로. 밝기는 색의 밝기로. 탭하면 복귀, 다이얼은 그대로
-            Box(
-                Modifier.fillMaxSize()
-                    .background(lerp(Color.Black, edgeColor, 0.5f + 0.5f * light.level)) // 60% 에서도 충분히 밝게
-                    .clickable { light.fullLight = false },
-                contentAlignment = Alignment.BottomCenter
-            ) {
-                Text(
-                    "풀 라이트 · 다이얼로 밝기·색온도 조절 · 화면을 탭하면 돌아갑니다",
-                    color = Color(0x99000000), fontSize = 16.sp, modifier = Modifier.padding(24.dp)
-                )
-            }
+            FullLight(light, edgeColor)
         } else {
-            // 안쪽 창: 밝기가 올라가면 테두리가 두꺼워진다
+            // 안쪽 창: 밝기가 올라가면 테두리가 두꺼워진다(창이 줄어든다)
             Box(
                 Modifier.fillMaxSize()
-                    .padding((8 + 72 * light.level).dp)
+                    .padding(PanelLayout.ringDp(light.level).dp)
                     .clip(RoundedCornerShape(INNER_RADIUS))
-                    .background(Color.Black)
-                    .padding(12.dp)
-            ) {
-                Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    // 왼쪽: 폰 화면 모니터(세로 영상은 Fit, 남는 폭은 검정)
-                    Box(Modifier.weight(1f).fillMaxHeight()) {
-                        val f = frame
-                        if (f != null) {
-                            Image(f.asImageBitmap(), "phone screen", Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
-                            // "앱 하나만 공유"에서 그 앱이 가려지면 프레임이 검게 온다. 이유를 띄운다
-                            if (share?.visible == false) {
-                                Box(Modifier.fillMaxSize().background(Color(0xAA000000)), contentAlignment = Alignment.Center) {
-                                    Text(
-                                        "공유한 앱이 폰에서 가려져 있습니다.\n폰에서 그 앱을 다시 앞으로 가져오세요",
-                                        color = Color.White, fontSize = 22.sp, textAlign = TextAlign.Center
-                                    )
-                                }
-                            }
-                        } else {
-                            Text(
-                                when {
-                                    share?.stopped == true -> "폰 화면 공유가 끝났습니다.\n폰에서 '화면 공유 시작'을 다시 눌러 주세요"
-                                    connected -> "폰 화면을 기다리는 중…\n폰에서 화면 공유를 시작해 주세요"
-                                    else -> "폰 화면 연결 대기 중\n폰을 연결하고 Car Studio에서 화면 공유를 시작해 주세요"
-                                },
-                                Modifier.align(Alignment.Center), color = Color.Gray, fontSize = 22.sp, textAlign = TextAlign.Center
-                            )
-                        }
+                    .background(StudioColors.Ink) // 테마의 가장 깊은 바닥
+            )
+            // 안쪽 내용: 테두리가 가장 두꺼울 때를 기준으로 자리를 고정한다. 밝기를 바꿔도 모니터·패널은 움직이지 않는다
+            BoxWithConstraints(Modifier.fillMaxSize().padding(PanelLayout.CONTENT_INSET_DP.dp)) {
+                val f = frame
+                val split = PanelLayout.twoPanels(maxWidth.value, f?.width, f?.height)
+                Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(PanelLayout.GAP_DP.dp)) {
+                    // 세로 영상: 조명 묶음 | 모니터 | 화면 묶음. 가로 영상: 모니터 | 두 묶음을 이어 붙인 한 칸
+                    if (split) {
+                        StudioPanel { LightControls(light, car.lighting, studio, presets, connected, streaming = f != null) }
                     }
-                    // 오른쪽: 조명 패널
-                    LightPanel(light, car.lighting, studio, presets)
+                    Monitor(f, connected, share, Modifier.weight(1f).fillMaxHeight())
+                    StudioPanel(footer = { FullLightButton({ light.fullLight = true }) }) {
+                        if (!split) {
+                            LightControls(light, car.lighting, studio, presets, connected, streaming = f != null)
+                            PanelDivider()
+                        }
+                        ScreenControls(light, car.lighting, presets)
+                    }
                 }
             }
         }
-        val notice = when {
-            exiting && car.gearFailed -> "기어 상태를 확인할 수 없어 스튜디오를 종료합니다."
-            exiting -> "주행 기어(D·R)에서는 스튜디오를 사용할 수 없어 종료합니다.\nP 또는 N에서 다시 실행해 주세요."
-            car.usable == null -> "차량 상태 확인 중…"
+        val notice: Pair<String, String?>? = when {
+            exiting && car.gearFailed -> "기어 상태를 확인할 수 없어 스튜디오를 종료합니다" to null
+            exiting -> "주행 기어(D·R)에서는 스튜디오를 사용할 수 없어 종료합니다" to "P 또는 N에서 다시 실행해 주세요"
+            car.usable == null -> "차량 상태 확인 중…" to null
             else -> null
         }
         if (notice != null) {
             Box(Modifier.fillMaxSize().background(Color(0xF0000000)), contentAlignment = Alignment.Center) {
-                Text(notice, color = Color.White, fontSize = 28.sp, textAlign = TextAlign.Center)
+                Column(Modifier.widthIn(max = 760.dp).padding(40.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(notice.first, color = StudioColors.Text, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+                    notice.second?.let { Text(it, color = StudioColors.TextDim, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center) }
+                }
             }
         }
     }
 }
 
+/**
+ * 풀 라이트(C13): 모니터·패널을 숨기고 앱 영역 전체를 조명으로. 밝기는 색의 밝기로. 탭하면 복귀, 다이얼은 그대로.
+ * 안내는 들어올 때와 다이얼로 값을 바꿀 때만 잠깐 띄운다(계속 떠 있으면 고른 빛에 얼룩이 된다). 지금 값도 같이 보여 준다.
+ */
+@Composable
+private fun FullLight(light: StudioLight, edgeColor: Color) {
+    var hint by remember { mutableStateOf(true) }
+    LaunchedEffect(light.level, light.kelvin, light.dialColor) {
+        hint = true
+        delay(FULL_LIGHT_HINT_MS)
+        hint = false
+    }
+    Box(
+        Modifier.fillMaxSize()
+            .background(lerp(Color.Black, edgeColor, 0.5f + 0.5f * light.level)) // 60% 에서도 충분히 밝게
+            .clickable { light.fullLight = false },
+        contentAlignment = Alignment.BottomCenter
+    ) {
+        AnimatedVisibility(hint, enter = fadeIn(), exit = fadeOut()) {
+            Text(
+                "풀 라이트 · ${LightLabels.summary(light.params(Protocol.ROLE_CAR))} · 다이얼로 밝기·흰 빛 톤 조절 · 화면을 탭하면 돌아갑니다",
+                color = Color.White, style = MaterialTheme.typography.bodyLarge,
+                // 밝은 빛 위에서도 글자가 읽히게 바탕을 짙게(흰 빛 위에서 대비 7:1 안팎)
+                modifier = Modifier.padding(32.dp).background(Color(0xA6000000), CircleShape).padding(horizontal = 26.dp, vertical = 14.dp),
+            )
+        }
+    }
+}
+
+/**
+ * 폰 화면 모니터. 영상은 비율을 지킨 채 자리에 맞추고 패널처럼 모서리를 둥글린다(남는 자리는 안쪽 창의 바탕).
+ * 영상이 없으면 지금 상태와 다음에 할 일을 띄운다.
+ */
+@Composable
+private fun Monitor(frame: Bitmap?, connected: Boolean, share: ShareStatus?, modifier: Modifier = Modifier) {
+    Box(modifier, contentAlignment = Alignment.Center) {
+        if (frame != null) {
+            Box(Modifier.aspectRatio(frame.width / frame.height.toFloat()).clip(RoundedCornerShape(24.dp)), contentAlignment = Alignment.Center) {
+                Image(frame.asImageBitmap(), "phone screen", Modifier.fillMaxSize(), contentScale = ContentScale.FillBounds)
+                // "앱 하나만 공유"에서 그 앱이 가려지면 프레임이 검게 온다. 이유를 띄운다
+                if (share?.visible == false) {
+                    Box(Modifier.fillMaxSize().background(Color(0xB3000000)), contentAlignment = Alignment.Center) {
+                        Message("공유한 앱이 폰에서 가려져 있습니다", "폰에서 그 앱을 다시 앞으로 가져오세요")
+                    }
+                }
+            }
+        } else {
+            val stopped = share?.stopped == true
+            val (title, body) = when {
+                stopped -> "폰 화면 공유가 끝났습니다" to "폰에서 '화면 공유 시작'을 다시 눌러 주세요"
+                connected -> "폰 화면을 기다리는 중" to "폰의 Selene에서 화면 공유를 시작해 주세요"
+                else -> "폰 연결 대기 중" to "폰을 연결하고 Selene에서 화면 공유를 시작해 주세요"
+            }
+            MonitorPlaceholder(title, body, steps = !connected && !stopped)
+        }
+    }
+}
+
+/** 폰 화면이 아직 없을 때: 폰 윤곽, 상태 문장, (연결 전이면) 사용 순서. 모니터가 좁아도 들어가게 순서는 세로로 쌓는다. */
+@Composable
+private fun MonitorPlaceholder(title: String, body: String, steps: Boolean) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(28.dp)) {
+        Box(Modifier.size(150.dp, 300.dp).border(2.dp, StudioColors.Line, RoundedCornerShape(30.dp)), contentAlignment = Alignment.TopCenter) {
+            Box(Modifier.padding(top = 16.dp).size(44.dp, 6.dp).background(StudioColors.Line, CircleShape))
+        }
+        Message(title, body)
+        if (steps) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                listOf("폰 연결", "화면 공유 시작", "앱 하나만 공유").forEachIndexed { i, s -> StepPill(i + 1, s) }
+            }
+        }
+    }
+}
+
+/** 모니터 자리의 안내: 제목 + 다음에 할 일. 모니터가 좁을 때(패널이 양옆) 마지막 줄에 한두 글자만 남지 않게 줄 길이를 고르게 나눈다. */
+@Composable
+private fun Message(title: String, body: String?) {
+    val balanced = LineBreak.Heading
+    Column(Modifier.padding(horizontal = 32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(title, color = StudioColors.Text, style = MaterialTheme.typography.titleLarge.copy(lineBreak = balanced), textAlign = TextAlign.Center)
+        if (body != null) Text(body, color = StudioColors.TextDim, style = MaterialTheme.typography.bodyLarge.copy(lineBreak = balanced), textAlign = TextAlign.Center)
+    }
+}
+
+@Composable
+private fun StepPill(n: Int, text: String) {
+    Row(
+        Modifier.background(StudioColors.SurfaceHigh, CircleShape).padding(start = 8.dp, end = 20.dp, top = 8.dp, bottom = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(34.dp).background(StudioColors.Text, CircleShape), contentAlignment = Alignment.Center) {
+            Text("$n", color = StudioColors.Ink, style = MaterialTheme.typography.labelMedium)
+        }
+        Text(text, color = StudioColors.Text, style = MaterialTheme.typography.labelLarge)
+    }
+}

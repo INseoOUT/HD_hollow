@@ -50,7 +50,8 @@ android {
 }
 
 dependencies {
-    implementation(project(":shared")) // 폰↔차 계약: 메시지 코덱, 조명 값, 색 변환 (plan/work-plan.md 2절)
+    implementation(project(":shared")) // 폰↔차 계약: 메시지 코덱, 조명 값, 색 변환 (plan/spec.md 2절)
+    implementation(project(":ui")) // 디자인 시스템: 테마·그라데이션 슬라이더·칩·조명 값 라벨
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)

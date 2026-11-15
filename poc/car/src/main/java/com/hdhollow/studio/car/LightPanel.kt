@@ -6,202 +6,158 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.hdhollow.studio.shared.ColorTemp
-import com.hdhollow.studio.shared.LightingParams
-import kotlin.math.roundToInt
+import com.hdhollow.studio.shared.Protocol
+import com.hdhollow.studio.ui.CarScreenSection
+import com.hdhollow.studio.ui.ColorDot
+import com.hdhollow.studio.ui.ColorSection
+import com.hdhollow.studio.ui.PresetSection
+import com.hdhollow.studio.ui.RingLightSection
+import com.hdhollow.studio.ui.StatusPill
+import com.hdhollow.studio.ui.StudioColors
 
-/** 오른쪽 조명 패널 폭. 앱 영역(약 1680px, 160dpi)에서 세로 폰 화면(약 560px) 옆에 들어간다. */
-val PANEL_WIDTH = 380.dp
-
-private val PanelBg = Color(0xE614161A)
-private val Dim = Color(0xFF9A9FA8)
-private val Line = Color(0xFF2C3038)
-private val Danger = Color(0xFFFF8A7A)
+/*
+ * 조명 패널. 내용은 두 묶음이다.
+ *  - 조명([LightControls]): 이름·폰 연결 상태, 링라이트(지금 값·밝기), 프리셋(기본 4 + 사용자, 추가·삭제)
+ *  - 화면([ScreenControls]): 색(색상환·흰 빛 톤), 차 화면(다이얼 대상, 앰비언트 연동·현재 값, 테마), 맨 아래 풀 라이트 버튼
+ * 세로 영상이면 모니터 양옆에 한 묶음씩 두고(스크롤 없이 다 보인다), 가로 영상이면 오른쪽 한 칸에 이어 붙인다([PanelLayout]).
+ * 구역은 폰 화면과 같은 컴포넌트(poc/ui StudioSections)다. 실내등·독서등은 패널에서 직접 만지지 않고 프리셋으로만 바뀐다(2026-11-09 결정).
+ */
 
 /**
- * 조명 패널: 프리셋(기본 4 + 사용자, 추가·삭제), 링라이트(밝기·색온도·무드 색·다이얼 대상·풀 라이트), 앰비언트(연동·현재 값).
- * 실내등·독서등은 패널에서 직접 만지지 않고 프리셋으로만 바뀐다(2026-11-09 결정).
+ * 패널 한 칸. [content] 는 넘치면 스크롤되고 아래로 더 있으면 끝을 흐리게 해 알린다. [footer] 는 스크롤과 상관없이 맨 아래에 붙어 있다.
  */
 @Composable
-fun LightPanel(light: StudioLight, lighting: Lighting, studio: StudioVehicle, presets: ScenePresets, modifier: Modifier = Modifier) {
-    val userScenes by presets.user.collectAsState()
-    var editing by remember { mutableStateOf(false) } // 삭제 모드: 사용자 프리셋을 탭하면 지운다
-
+fun StudioPanel(modifier: Modifier = Modifier, footer: (@Composable () -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
+    val scroll = rememberScrollState()
+    val scrim = StudioColors.PanelScrim.copy(alpha = 1f)
     Column(
         modifier
             .fillMaxHeight()
-            .width(PANEL_WIDTH)
-            .background(PanelBg, RoundedCornerShape(16.dp))
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState()),
+            .width(PanelLayout.PANEL_DP.dp)
+            .background(StudioColors.PanelScrim, RoundedCornerShape(24.dp))
+            .padding(horizontal = 24.dp, vertical = 22.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        Section("프리셋") {
-            val all = Scenes.BUILT_IN + userScenes
-            val current = Scenes.matching(light, all)
-            FlowChips(all.map { scene ->
-                ChipSpec(
-                    text = if (editing && !scene.builtIn) "× ${scene.name}" else scene.name,
-                    selected = !editing && current?.id == scene.id,
-                    danger = editing && !scene.builtIn,
-                    enabled = !editing || !scene.builtIn,
-                ) {
-                    if (editing) {
-                        if (!scene.builtIn) presets.delete(scene.id)
-                    } else {
-                        Scenes.applyLight(scene, light)
-                        Scenes.applyVehicle(scene, lighting, studio)
-                    }
-                }
-            })
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Chip("+ 지금 값 저장", selected = false) { presets.saveCurrent(light); editing = false }
-                if (userScenes.isNotEmpty()) Chip(if (editing) "완료" else "삭제", selected = editing) { editing = !editing }
-            }
-            if (editing) Text("지울 프리셋을 탭하세요. 기본 프리셋은 지울 수 없습니다.", color = Dim, fontSize = 12.sp)
-        }
-
-        Section("링라이트") {
-            LabelRow("밝기", "${(light.level * 100).roundToInt()}%")
-            Slider(light.level, { light.level = it }, Modifier.fillMaxWidth())
-            LabelRow("색온도", light.colorLabel)
-            Slider(
-                light.kelvin.toFloat(),
-                { light.chooseKelvin((it / LightingParams.KELVIN_SLIDER_STEP).roundToInt() * LightingParams.KELVIN_SLIDER_STEP) },
-                Modifier.fillMaxWidth(),
-                valueRange = LightingParams.KELVIN_MIN.toFloat()..LightingParams.KELVIN_MAX.toFloat(),
-                steps = (LightingParams.KELVIN_MAX - LightingParams.KELVIN_MIN) / LightingParams.KELVIN_SLIDER_STEP - 1,
-            )
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("무드 색", color = Dim, fontSize = 13.sp)
-                LightingParams.PRESETS.forEach { name ->
-                    val c = Color(ColorTemp.MOOD_COLORS.getValue(name))
-                    Box(
-                        Modifier.size(32.dp).background(c, CircleShape)
-                            .border(if (light.preset == name) 3.dp else 0.dp, Color.White, CircleShape)
-                            .clickable { light.choosePreset(if (light.preset == name) null else name) }
-                    )
+        Box(
+            Modifier.weight(1f).drawWithContent {
+                drawContent()
+                if (scroll.canScrollForward) {
+                    val fade = 56.dp.toPx()
+                    drawRect(Brush.verticalGradient(listOf(Color.Transparent, scrim), startY = size.height - fade, endY = size.height))
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                // 에뮬레이터에선 다이얼 누름·nudge가 앱에 안 와서(RotaryService가 소비) 터치로 전환
-                Chip("다이얼: ${if (light.dialColor) "색온도" else "밝기"} ⇄", selected = false) { light.dialColor = !light.dialColor }
-                // 폰 화면을 직접 봐야 할 때(화상회의): 모니터·패널을 숨기고 전체를 조명으로. 화면 탭으로 복귀
-                Chip("풀 라이트", selected = light.fullLight) { light.fullLight = true }
-            }
+        ) {
+            Column(Modifier.verticalScroll(scroll), verticalArrangement = Arrangement.spacedBy(18.dp), content = content)
         }
-
-        if (lighting.ambient.isNotEmpty()) {
-            Section("앰비언트") {
-                ToggleRow("링라이트와 연동", light.ambientLinked) { light.ambientLinked = it }
-                lighting.ambient.forEach { (area, a) ->
-                    Text(
-                        "${area.label()} · 밝기 ${a.brightness ?: "?"} · 색 ${a.color?.let { "#%06X".format(it and 0xFFFFFF) } ?: "?"}" +
-                            (a.switch?.let { " · ${it.name.lowercase()}" } ?: ""),
-                        color = Dim, fontSize = 12.sp,
-                    )
-                }
-            }
-        }
+        footer?.invoke()
     }
 }
 
-private data class ChipSpec(
-    val text: String,
-    val selected: Boolean,
-    val danger: Boolean = false,
-    val enabled: Boolean = true,
-    val onClick: () -> Unit,
-)
-
-/** 칩을 패널 폭에 맞춰 줄바꿈한다(글자 수 기준의 단순 배치. 패널 폭 380dp 에 칩 4~5개). */
+/** 구역 사이의 선. */
 @Composable
-private fun FlowChips(chips: List<ChipSpec>) {
-    val rows = mutableListOf<MutableList<ChipSpec>>()
-    var width = 0
-    chips.forEach { c ->
-        val w = c.text.length * 14 + 28 // 대략의 폭(dp)
-        if (rows.isEmpty() || width + w > 340) { rows += mutableListOf(c); width = w } else { rows.last() += c; width += w + 6 }
-    }
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        rows.forEach { row ->
-            Row(Modifier.wrapContentHeight(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                row.forEach { c -> Chip(c.text, c.selected, c.danger, c.enabled, c.onClick) }
-            }
-        }
-    }
+fun PanelDivider() {
+    Box(Modifier.fillMaxWidth().height(1.dp).background(StudioColors.Line))
 }
 
+/** 조명 묶음: 이름·폰 연결 상태 → 링라이트(지금 값·밝기) → 프리셋. */
 @Composable
-private fun Section(title: String, content: @Composable () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(title, color = Color.White, fontSize = 15.sp)
-        Box(Modifier.fillMaxWidth().padding(bottom = 2.dp).background(Line).size(1.dp))
-        content()
-    }
-}
+fun LightControls(light: StudioLight, lighting: Lighting, studio: StudioVehicle, presets: ScenePresets, connected: Boolean, streaming: Boolean) {
+    val userScenes by presets.user.collectAsState()
+    val params = light.params(Protocol.ROLE_CAR)
 
-@Composable
-private fun LabelRow(label: String, value: String) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, color = Dim, fontSize = 13.sp)
-        Text(value, color = Color.White, fontSize = 13.sp)
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+        Text("SELENE", color = StudioColors.TextDim, style = MaterialTheme.typography.labelMedium, letterSpacing = 2.sp)
+        StatusPill(
+            text = when { streaming -> "송출 중"; connected -> "폰 연결됨"; else -> "폰 대기 중" },
+            dot = if (connected || streaming) StudioColors.Ok else StudioColors.TextFaint,
+        )
     }
-}
-
-@Composable
-private fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, color = Color.White, fontSize = 14.sp)
-        Switch(checked, onChange)
-    }
-}
-
-@Composable
-private fun Chip(text: String, selected: Boolean, danger: Boolean = false, enabled: Boolean = true, onClick: () -> Unit) {
-    val bg = when {
-        selected -> Color.White
-        danger -> Danger.copy(alpha = 0.25f)
-        else -> Color(0xFF2A2E36)
-    }
-    val fg = when {
-        selected -> Color.Black
-        !enabled -> Dim
-        danger -> Danger
-        else -> Color.White
-    }
-    Text(
-        text,
-        color = fg,
-        fontSize = 13.sp,
-        modifier = Modifier
-            .background(bg, RoundedCornerShape(999.dp))
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+    PanelDivider()
+    RingLightSection(params, onLevel = { light.level = it })
+    PanelDivider()
+    PresetSection(
+        params, userScenes,
+        onApply = { scene ->
+            CarScenes.applyLight(scene, light)
+            CarScenes.applyVehicle(scene, lighting, studio)
+        },
+        onSave = { presets.saveCurrent(light) },
+        onDelete = { presets.delete(it.id) },
     )
+}
+
+/** 화면 묶음: 색(색상환·흰 빛 톤) → 차 화면(다이얼 대상, 앰비언트 연동·현재 값, 테마). 풀 라이트는 [FullLightButton] 으로 따로 둔다. */
+@Composable
+fun ScreenControls(light: StudioLight, lighting: Lighting, presets: ScenePresets) {
+    val userScenes by presets.user.collectAsState()
+    val params = light.params(Protocol.ROLE_CAR)
+
+    // 헥사 입력은 차에 두지 않는다(화면 키보드로 여섯 자리를 칠 일이 드물다). 폰에서 넣으면 여기 색상환에 반영된다
+    ColorSection(params, onKelvin = light::chooseKelvin, onMood = { light.choosePreset(it) }, showHex = false)
+    PanelDivider()
+    // 에뮬레이터에선 다이얼 누름·nudge 가 앱에 안 와서(RotaryService 가 소비) 터치로 대상을 바꾼다
+    CarScreenSection(
+        light.state(userScenes), onChange = light::apply,
+        showAmbient = lighting.ambient.isNotEmpty(), showFullLight = false,
+    ) {
+        // 차량에서 읽은 앰비언트의 지금 값. 연동이 실제로 들어갔는지 색 점과 밝기로 보여 준다.
+        // 스위치 값은 보이지 않는다: 에뮬레이터 2.1.0 에서 앰비언트가 켜져 있어도(Virtual Console mode=On) SDK 는 OFF 로 읽는다
+        lighting.ambient.forEach { (area, a) ->
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                ColorDot(a.color?.let { Color(0xFF000000.toInt() or it) } ?: StudioColors.Line)
+                Text(AmbientLabel.of(area.label(), a.brightness), color = StudioColors.TextDim, style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
+}
+
+/** 차량 앰비언트 한 영역의 지금 값을 사람 말로. 테스트 대상. */
+object AmbientLabel {
+    /** "전체 · 밝기 70". 밝기를 아직 못 읽었으면 "–". */
+    fun of(area: String, brightness: Int?): String = "$area · 밝기 ${brightness ?: "–"}"
+}
+
+/**
+ * 풀 라이트: 모니터·패널을 숨기고 차 화면 전체를 조명으로. 패널 맨 아래에 늘 보이는 버튼이다
+ * (스위치로 두면 켠 순간 패널이 사라져 '켜짐'을 볼 일이 없다). 높이는 Android Automotive 가이드의 76dp.
+ */
+@Composable
+fun FullLightButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val shape = RoundedCornerShape(20.dp)
+    Column(
+        modifier.fillMaxWidth().height(76.dp)
+            .clip(shape)
+            .background(StudioColors.SurfaceHigh)
+            .border(1.dp, StudioColors.Line, shape)
+            .clickable(role = Role.Button, onClick = onClick),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text("풀 라이트", color = StudioColors.Text, style = MaterialTheme.typography.labelLarge)
+        Text("화면 전체를 조명으로", color = StudioColors.TextDim, style = MaterialTheme.typography.labelSmall)
+    }
 }

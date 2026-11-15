@@ -8,6 +8,8 @@ import com.hdhollow.studio.shared.LightingParams
 import com.hdhollow.studio.shared.LinkSession
 import com.hdhollow.studio.shared.Protocol
 import com.hdhollow.studio.shared.ShareStatus
+import com.hdhollow.studio.shared.StudioCommand
+import com.hdhollow.studio.shared.StudioState
 import com.hdhollow.studio.shared.Transport
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -22,7 +24,7 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.resume
 
 /**
- * 폰에 붙는 쪽. 연결 하나로 FRAME(폰→차)과 LIGHT(양방향)를 받는다. plan/work-plan.md 2절.
+ * 폰에 붙는 쪽. 연결 하나로 FRAME·STATUS·COMMAND(폰→차)와 LIGHT·STATE(양방향)를 주고받는다. plan/spec.md 2절.
  * 전송 계층은 [connect] 가 만든다(TCP 또는 USB 액세서리). [run] 이 살아 있는 동안 끊기면
  * [Protocol.RECONNECT_DELAY_MS] 뒤 다시 연다. 취소되면 끊는다.
  */
@@ -36,6 +38,14 @@ class StudioLinkClient(private val screenW: Int, private val screenH: Int) {
 
     private val _incomingLight = MutableSharedFlow<LightingParams>(extraBufferCapacity = 16)
     val incomingLight: SharedFlow<LightingParams> = _incomingLight.asSharedFlow()
+
+    private val _incomingState = MutableSharedFlow<StudioState>(extraBufferCapacity = 16)
+    /** 폰에서 바꾼 앱 상태(앰비언트 연동·풀 라이트·다이얼 대상·테마). */
+    val incomingState: SharedFlow<StudioState> = _incomingState.asSharedFlow()
+
+    private val _commands = MutableSharedFlow<StudioCommand>(extraBufferCapacity = 16)
+    /** 폰의 부탁(프리셋 적용·저장·삭제). */
+    val commands: SharedFlow<StudioCommand> = _commands.asSharedFlow()
 
     private val _status = MutableStateFlow<ShareStatus?>(null)
     /** 폰이 알린 공유 상태(공유 앱이 가려짐·공유 끝남). 새 세션이 붙거나 '끝남' 뒤 프레임이 오면 지운다. */
@@ -76,6 +86,10 @@ class StudioLinkClient(private val screenW: Int, private val screenH: Int) {
     fun sendLight(params: LightingParams): Boolean =
         session?.sendLight(params.copy(src = Protocol.ROLE_CAR)) ?: false
 
+    /** 차의 앱 상태를 폰에. 연결이 없으면 false. */
+    fun sendState(state: StudioState): Boolean =
+        session?.sendState(state.copy(src = Protocol.ROLE_CAR)) ?: false
+
     /** 세션 하나를 끝날 때까지 돌린다. */
     private suspend fun serve(transport: Transport) = suspendCancellableCoroutine { cont ->
         lateinit var s: LinkSession
@@ -94,6 +108,15 @@ class StudioLinkClient(private val screenW: Int, private val screenH: Int) {
 
             override fun onLight(params: LightingParams) {
                 _incomingLight.tryEmit(params)
+            }
+
+            override fun onState(state: StudioState) {
+                _incomingState.tryEmit(state)
+            }
+
+            override fun onCommand(command: StudioCommand) {
+                Log.d(TAG, "폰 명령 $command")
+                _commands.tryEmit(command)
             }
 
             override fun onStatus(status: ShareStatus) {

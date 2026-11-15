@@ -1,8 +1,8 @@
 # 아이디어 후보
 
 > 작성일: 2026-10-28  
-> 전제: [../contest/goal.md](../contest/goal.md) 심사 기준, [../sdk/overview.md](../sdk/overview.md)의 SDK 제공 상태(2026-10-28 확인)  
-> 상태: 후보 선정 전. 이 문서에서 2~3개를 골라 각각 1페이지로 디벨롭한 뒤 1개를 확정한다.
+> 전제: [../../contest/goal.md](../../contest/goal.md) 심사 기준, [../../sdk/overview.md](../../sdk/overview.md)의 SDK 제공 상태(2026-10-28 확인)  
+> 상태: **종료(2026-11-10 보관).** 이 문서의 후보 7개는 채택하지 않았다. 확정한 안은 "차량 안 스튜디오"이고 기획서는 [../submission-draft.md](../submission-draft.md). 아래는 2026-10-28 당시 내용 그대로다.
 
 ## 전제와 제약
 

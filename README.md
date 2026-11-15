@@ -2,8 +2,9 @@
 
 현대자동차그룹 차량용 앱 개발 공모전("Code your App into Pleos App Market") 참가 준비 레포입니다.
 공모전 규정과 Pleos Connect SDK 공식 문서를 정리해 두어, 사이트를 열지 않고도 필요한 내용을 확인할 수 있게 합니다.
+출품작은 주차한 차를 1인 스튜디오로 쓰게 하는 앱 "Selene"(셀레네)이고 기획 문서는 [plan/](plan/), 앱 코드는 [poc/](poc/)에 있습니다.
 
-> 마지막 확인일: 2026-10-28  
+> 마지막 확인일: 2026-10-28 (공식 문서 기준. 폴더 안내는 2026-11-10 갱신)  
 > 접수 마감: 2026-11-15 (일) · 1차 결과: 11-23 · 2차 PT: 12-03~04 · 최종 발표: 12-18
 
 ## 폴더 안내
@@ -12,7 +13,8 @@
 |---|---|---|
 | [contest/](contest/) | 대회 목표, 제약사항, 개발 환경 | 항상. 기획·개발 방향을 정할 때 |
 | [sdk/](sdk/) | 공식 SDK 5종의 설명, 기능, 활용, 함수 목록 | 구현할 때 |
-| [plan/](plan/) | 우리 기획: 아이디어 후보, 선정, 기획서 초안 | 기획할 때 |
+| [plan/](plan/) | 우리 기획: 기획서 초안, 제품 명세, 남은 일 | 기획·제출 준비할 때 |
+| [poc/](poc/) | 앱 코드(차량 앱·폰 동반 앱)와 확인 결과 | 구현·실행할 때 |
 
 ### contest/ (항상 봐야 할 것)
 
@@ -27,8 +29,18 @@
 
 | 파일 | 내용 |
 |---|---|
-| [ideas.md](plan/ideas.md) | 아이디어 후보 7개, SDK 매핑, 비교표, 추천 순위 |
-| [dev-environment.md](plan/dev-environment.md) | 확정 개발 환경: 머신 세팅, 프로젝트 버전 고정표, 구조·규칙, 세팅 순서 |
+| [submission-draft.md](plan/submission-draft.md) | 기획서 초안. 접수양식 02 섹션에 들어갈 본문(심사위원용)과 작성 메모 |
+| [spec.md](plan/spec.md) | 제품 명세. 폰↔차 계약, 동작 규칙, 결정 기록, 확인한 사실 |
+| [work-plan.md](plan/work-plan.md) | 남은 일. 접수까지 일정과 제출물, 접수 뒤 계획, 리스크·Pleos 문의, 결정할 것 |
+| [cards/](plan/cards/) | 카드뉴스. [proposal/](plan/cards/proposal/)(기획서 카드뉴스 14장·PDF·앱 화면 스크린샷), [app-name/](plan/cards/app-name/)(앱 이름 후보 검토 8장. 이름은 그 뒤 Selene로 정했고 이 카드는 그 전 기록이다) |
+| [archive/](plan/archive/) | 끝난 문서. [ideas.md](plan/archive/ideas.md)(채택하지 않은 아이디어 후보 7개), [dev-environment.md](plan/archive/dev-environment.md)(초기 개발 환경 정의) |
+
+### poc/ (앱 코드)
+
+| 파일 | 내용 |
+|---|---|
+| [README.md](poc/README.md) | 앱 소개, 실행 방법, 테스트 환경, APK 위치, 모듈 구성, 알려진 제한 |
+| [verification.md](poc/verification.md) | 확인 상태 표(단위 테스트·에뮬레이터), fps 측정, 개발 메모 |
 
 ### sdk/ (필요할 때 찾는 것)
 
